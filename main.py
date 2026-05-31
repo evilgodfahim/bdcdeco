@@ -60,90 +60,44 @@ MAX_FEED_ITEMS        = 500
 
 # -- PROMPT --------------------------------------------------------------------
 
-PROMPT = """You are a strict news classification engine. Input: numbered article titles from Bangladeshi and international news outlets. Titles may be in Bengali (Bangla) or English — evaluate both equally. Classify each as SIGNAL or NOISE. Return only SIGNAL indices.
+PROMPT = """ROLE: Binary news classifier. Input is a numbered list of article titles in English or Bengali. Output is a JSON object with one key: "signal", containing a list of 0-based indices of SIGNAL articles.
 
-TASK: Select only articles covering broad, national-level Bangladesh economics and finance news. The bar is HIGH.
+SIGNAL DEFINITION:
+An article is SIGNAL if and only if it reports a concrete, verifiable, national-scale economic or financial development concerning Bangladesh. "Concrete" means a data release, policy decision, regulatory action, or official transaction. "National-scale" means it affects Bangladesh's macroeconomy, a major sector in aggregate, or Bangladesh's position in international finance.
 
-STEP 1 — INSTANT NOISE. Mark as NOISE immediately if any of:
-  - Sports, entertainment, celebrity, lifestyle, health, or human interest
-  - Politics, governance, elections, law and order — unless a direct and explicit economic consequence is stated in the title itself
-  - Crime, accident, fire, flood, disaster — unless it triggers a stated national economic impact
-  - Opinion columns, editorials, tributes, anniversaries, or analysis without concrete data or decisions
-  - Any single-entity story: one bank's product launch, deposit scheme, CSR event, or branch opening; one company's earnings, revenue, or IPO; one factory's output; one entrepreneur's story; one NGO's program
-  - District-level, city-level, or sub-national economic events with no stated national significance
+SIGNAL DOMAINS:
 
-STEP 2 — SCOPE CHECK. SIGNAL only if ALL three are true:
-  (a) Bangladesh-relevant: directly concerns Bangladesh's economy, finance, monetary or fiscal affairs
-  (b) National scope: affects the whole country, a major sector, or Bangladesh's position in international economics
-  (c) Concrete: a real event, data release, policy decision, or official action — not a speculative feature or profile
+Monetary policy — BB policy rate, repo/reverse repo, CRR/SLR, money supply, forex intervention
+Exchange rate & reserves — taka rate movement, forex reserve level or trend, BB forex operations
+Remittance — aggregate inflow data (monthly/quarterly/annual), BB remittance policy
+Inflation — BBS CPI/PPI release, official nationwide inflation figure
+Export & import — EPB/BB aggregate trade data, trade balance, current account, BoP figures
+Tariff & trade policy — NBR customs/duty changes, trade agreement with national scope
+Budget & fiscal policy — national budget, supplementary budget, Finance Minister fiscal statement, NBR tax/VAT structural change, government revenue or expenditure data, fiscal deficit
+Public debt — government borrowing programme, T-bill/bond auction results, external debt stock, sovereign bond issuance, debt servicing data
+International finance — IMF/World Bank/ADB/IDB/AIIB programme approval, disbursement, or staff-level agreement for Bangladesh; sovereign credit rating change. Includes titles where agreement or progress is strongly implied ("reaches agreement", "concludes review", "unlocks tranche")
+FDI — BB/BIDA aggregate FDI inflow or outflow data, national FDI policy change
+GDP & macro — BBS GDP/GNI release, national accounts data, per capita income figures
+Capital markets — DSE/CSE broad index significant move, BSEC market-wide regulatory decision, circuit breaker, national securities regulation; sovereign or aggregate bond market development
+Banking sector systemic — sector-wide NPL data, overall private credit growth, BB prudential regulation affecting all banks, bank merger/nationalisation/licence cancellation, scheduled bank insolvency
+Energy & utilities — nationwide fuel price change, electricity or gas tariff adjustment by government or regulator
 
-SIGNAL categories:
-  - Bangladesh Bank: policy rate changes, monetary policy decisions, reserve requirements, forex interventions
-  - Foreign exchange: taka exchange rate moves, forex reserve levels and trends, currency policy
-  - Inflation: CPI data releases, official inflation figures, nationwide price changes
-  - Trade: aggregate export/import data, trade balance, tariff or trade policy changes
-  - Remittance: national inflow data, Bangladesh Bank remittance policy, overall trends
-  - Budget and fiscal policy: national budget, supplementary budget, NBR tax/VAT decisions, fiscal deficit figures
-  - Public debt: government borrowing programme, sovereign bonds, debt-to-GDP figures, debt restructuring
-  - International finance: IMF/World Bank/ADB/IDB programmes and loan approvals for Bangladesh, credit rating changes
-  - Capital markets: DSE/CSE broad index moves, market-wide circuit breakers, BSEC regulatory decisions affecting the whole market
-  - Sectoral aggregate data: total RMG export figures, banking sector NPL ratio, overall FDI data, total private sector credit
-  - Energy and utilities: nationwide fuel price changes, electricity or gas tariff adjustments at national level
-  - Economic reform and regulation: major national policy reforms, privatisation or nationalisation, broad banking sector regulation
+NOISE — regardless of framing:
+Single entity: one bank's earnings, product, branch, CSR, or deposit scheme; one company's revenue, IPO, or investment; one factory's output
+Sub-national: city, district, or facility-level event with no stated national aggregate impact
+Politics & governance: elections, parliament, cabinet, court, law enforcement — unless the title itself states a direct, named fiscal or monetary consequence
+Disaster & crisis: flood, fire, accident — unless title states a quantified national economic impact
+Opinion & analysis: editorial, column, forecast, interview, tribute — regardless of subject matter
+Human interest: profile, entrepreneur story, award, anniversary, lifestyle
 
-NOISE examples:
-  - "Dutch-Bangla Bank launches new savings product"
-  - "Robi records 15% revenue growth in Q3"
-  - "Garment worker dies in Ashulia factory fire"
-  - "Why Bangladesh Must Reform Its Tax System" (opinion)
-  - "Ctg port handles record containers in April" (sub-national, single facility)
-  - "Small entrepreneur from Rajshahi builds export business" (human interest)
+HARD RULE: If a title could plausibly be SIGNAL but lacks the concrete trigger (data release, policy decision, regulatory action, official transaction), classify as NOISE. Speculation, expectation, and "may/could/likely" language = NOISE.
 
-LANGUAGE NOTE: Bengali-language titles must be evaluated by the same criteria.
-Key Bengali economic/finance terms: অর্থনীতি, মূল্যস্ফীতি, রপ্তানি, আমদানি, রেমিট্যান্স, বাজেট, বাংলাদেশ ব্যাংক, মুদ্রানীতি, বিনিময় হার, রিজার্ভ, জিডিপি, ঋণ, রাজস্ব, বিনিয়োগ, শেয়ারবাজার, পুঁজিবাজার, ডলার, টাকা, সুদের হার, ব্যাংক খাত, এনপিএল, বৈদেশিক মুদ্রা, আইএমএফ, বিশ্বব্যাংক, মুদ্রাস্ফীতি, বৈদেশিক ঋণ, রাজকোষ, শুল্ক, ভ্যাট, এনবিআর
-
-WHEN IN DOUBT → NOISE.
-
-Output only: {{"signal": [0-based indices]}}. Valid JSON, no markdown, no explanation.
-
-EXAMPLES:
-
-Input:
-0. Bangladesh Bank raises policy rate by 50 basis points to curb inflation
-1. Grameenphone launches new data bundle for rural users
-2. বাংলাদেশের বৈদেশিক মুদ্রার রিজার্ভ ২০ বিলিয়নের নিচে নামল
-3. Dutch-Bangla Bank wins CSR award at annual banking summit
-4. রপ্তানি আয়ে ১২ শতাংশ প্রবৃদ্ধি, পোশাক খাতে রেকর্ড
-5. Government to privatise state-owned jute mills under reform programme
-6. জাতীয় রাজস্ব বোর্ড ভ্যাট কাঠামোয় বড় পরিবর্তন আনছে
-7. IMF approves $700m tranche for Bangladesh under ECF programme
-8. Local entrepreneur builds export business from Rajshahi village
-9. DSE general index falls 4% in single session, circuit breaker triggered
-10. Bangladesh current account deficit widens to record $8bn
-11. Premier Bank opens 10 new branches across the country
-12. টাকার বিপরীতে ডলারের দাম আরও বাড়ল, নতুন রেকর্ড
-13. কেন্দ্রীয় ব্যাংক সুদের হার বাড়াল, মূল্যস্ফীতি নিয়ন্ত্রণে পদক্ষেপ
-14. Dhaka court sentences former minister for corruption
-15. Bangladesh foreign debt crosses $100bn for first time
-Output: {{"signal": [0, 2, 4, 5, 6, 7, 9, 10, 12, 13, 15]}}
-
-Input:
-0. রেমিট্যান্স প্রবাহ কমেছে, টাকার উপর চাপ বাড়ছে
-1. Bashundhara Group opens new shopping mall in Sylhet
-2. Bangladesh GDP growth falls to 5.1% in FY25, BBS data shows
-3. Dhaka Bank MDs speech at annual general meeting
-4. এনবিআর আমদানি শুল্ক কাঠামো পরিবর্তনের ঘোষণা দিল
-5. International Women's Day celebrated at BRAC office
-6. ADB approves $500m loan for Bangladesh infrastructure
-7. বাজেট ঘাটতি বাড়ছে, সরকারের ব্যাংক ঋণ রেকর্ড উচ্চতায়
-8. Fire breaks out at Tejgaon garment factory, 3 workers injured
-9. Bangladesh stock market regulator BSEC bans short selling nationwide
-10. ব্র্যাক ব্যাংকের নতুন মোবাইল ব্যাংকিং সেবা চালু
-Output: {{"signal": [0, 2, 4, 6, 7, 9]}}
+OUTPUT FORMAT:
+{"signal": [indices]}
+Valid JSON only. No markdown. No explanation. Empty list if no signal found.
 
 Article titles:
-{titles}
-"""
+{titles}"""
 
 # -- CONSTANTS -----------------------------------------------------------------
 
