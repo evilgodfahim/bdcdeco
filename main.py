@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-RSS Feed Processor
+BD Economics & Finance RSS Feed Processor
 
-All articles from all feeds go to one Gemini call.
-Gemini classifies each headline as signal or noise AND deduplicates
-near-identical signal titles in a single pass.
+Fetches all feeds, deduplicates by link, sends titles to Mistral.
+Mistral filters for broad Bangladesh economics and finance news only.
+Both Bangla and English titles are evaluated.
 
-Output:  curated_feed.xml
-Stats:   fetch_stats.json
+Output:  econ_feed.xml
+Stats:   econ_stats.json
 """
 
 import feedparser
@@ -15,11 +15,10 @@ import json
 import os
 import time
 import re
-import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from google import genai
+from mistralai.client import Mistral
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin, urlparse
 import requests
@@ -32,132 +31,115 @@ except Exception:
 # -- FEEDS ---------------------------------------------------------------------
 
 FEED_URLS = [
-    "https://evilgodfahim.github.io/ju/rss.xml",
-    "https://www.prothomalo.com/feed/",
-    "https://evilgodfahim.github.io/bb-rss/feed.xml",
-    "https://evilgodfahim.github.io/tbs/bangla.xml",
-    "https://evilgodfahim.github.io/dt/bangla.xml",
-    "https://evilgodfahim.github.io/dstar/feeds/bangla_feed.xml",
-    "https://evilgodfahim.github.io/skaln/feeds/feed.xml",
-    "https://evilgodfahim.github.io/bt/banglatribune.xml",
-    "https://evilgodfahim.github.io/bd24ar/feeds/feed-bangla.xml",
+    "https://evilgodfahim.github.io/mr/curated_feedb.xml",
+    "https://evilgodfahim.github.io/mr/curated_feed.xml",
+    "https://evilgodfahim.github.io/mr/curated_feed_edit.xml",
+    "https://evilgodfahim.github.io/mr/curated_feed_bdit.xml",
+    "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
+    "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
+    "https://evilgodfahim.github.io/bdl/final.xml",
+    "https://evilgodfahim.github.io/bdlb/final.xml",
 ]
 
-EXISTING_API_FEEDS = set(FEED_URLS)
-KL_API_FEEDS       = set()
+KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-GEMINI_MODEL          = "gemini-3.5-flash"
+MISTRAL_MODEL         = "mistral-large-latest"
 
-PROCESSED_FILE        = "processed_articles.json"
-SELECTED_FILE         = "selected_articles.json"
-OUTPUT_XML            = "curated_feed.xml"
-EXCLUDED_XML          = "ex.xml"
-STATS_FILE            = "fetch_stats.json"
+SEEN_FILE             = "seen.json"
+SELECTED_FILE         = "econ_selected_articles.json"
+OUTPUT_XML            = "econ_feed.xml"
+EXCLUDED_XML          = "econ_ex.xml"
+STATS_FILE            = "econ_stats.json"
 MAX_ARTICLES_PER_FEED = 100
-MAX_AGE_HOURS         = 10
+MAX_AGE_HOURS         = 25
 ALLOW_MISSING_DATES   = True
 ALLOW_OLDER           = False
 MAX_FEED_ITEMS        = 500
 
 # -- PROMPT --------------------------------------------------------------------
 
-# Single-pass: classify as SIGNAL/NOISE then deduplicate signal in one shot.
-# Returns the final list of 0-based indices to keep.
-CLASSIFY_AND_DEDUP_PROMPT = """You are a strict news classification and deduplication engine.
-Input: numbered article titles from Bangladeshi Bangla-language news outlets (Bengali/Bangla script).
+PROMPT = """You are a strict news classification engine. Input: numbered article titles from Bangladeshi and international news outlets. Titles may be in Bengali (Bangla) or English — evaluate both equally. Classify each as SIGNAL or NOISE. Return only SIGNAL indices.
 
-Your task has TWO steps. Execute both and return a single final result.
+TASK: Select only articles covering broad, national-level Bangladesh economics and finance news. The bar is HIGH.
 
-━━━ STEP 1 — CLASSIFY ━━━
+STEP 1 — INSTANT NOISE. Mark as NOISE immediately if any of:
+  - Sports, entertainment, celebrity, lifestyle, health, or human interest
+  - Politics, governance, elections, law and order — unless a direct and explicit economic consequence is stated in the title itself
+  - Crime, accident, fire, flood, disaster — unless it triggers a stated national economic impact
+  - Opinion columns, editorials, tributes, anniversaries, or analysis without concrete data or decisions
+  - Any single-entity story: one bank's product launch, deposit scheme, CSR event, or branch opening; one company's earnings, revenue, or IPO; one factory's output; one entrepreneur's story; one NGO's program
+  - District-level, city-level, or sub-national economic events with no stated national significance
 
-Classify each title as SIGNAL or NOISE. The bar is SUPER HIGH.
-(LOWEST < LOWER < LOW < AVERAGE < HIGH < SUPER HIGH < ULTRA HIGH < EXTREME)
+STEP 2 — SCOPE CHECK. SIGNAL only if ALL three are true:
+  (a) Bangladesh-relevant: directly concerns Bangladesh's economy, finance, monetary or fiscal affairs
+  (b) National scope: affects the whole country, a major sector, or Bangladesh's position in international economics
+  (c) Concrete: a real event, data release, policy decision, or official action — not a speculative feature or profile
 
-INSTANT NOISE — mark immediately if the title is any of:
-  - Sports, entertainment, celebrity, lifestyle, human interest
-  - Tribute, commemorative, or anniversary pieces
-  - Praise or criticism of a person, party, or institution
-  - Any isolated or discrete incident: one arrest, one clash, one crime, one accident,
-    one fire, one death, one protest at one location — no matter how dramatic
-  - Anything affecting only one district, one institution, one community, or one individual
+SIGNAL categories:
+  - Bangladesh Bank: policy rate changes, monetary policy decisions, reserve requirements, forex interventions
+  - Foreign exchange: taka exchange rate moves, forex reserve levels and trends, currency policy
+  - Inflation: CPI data releases, official inflation figures, nationwide price changes
+  - Trade: aggregate export/import data, trade balance, tariff or trade policy changes
+  - Remittance: national inflow data, Bangladesh Bank remittance policy, overall trends
+  - Budget and fiscal policy: national budget, supplementary budget, NBR tax/VAT decisions, fiscal deficit figures
+  - Public debt: government borrowing programme, sovereign bonds, debt-to-GDP figures, debt restructuring
+  - International finance: IMF/World Bank/ADB/IDB programmes and loan approvals for Bangladesh, credit rating changes
+  - Capital markets: DSE/CSE broad index moves, market-wide circuit breakers, BSEC regulatory decisions affecting the whole market
+  - Sectoral aggregate data: total RMG export figures, banking sector NPL ratio, overall FDI data, total private sector credit
+  - Energy and utilities: nationwide fuel price changes, electricity or gas tariff adjustments at national level
+  - Economic reform and regulation: major national policy reforms, privatisation or nationalisation, broad banking sector regulation
 
-SCOPE CHECK — SIGNAL only if the scope qualifies:
+NOISE examples:
+  - "Dutch-Bangla Bank launches new savings product"
+  - "Robi records 15% revenue growth in Q3"
+  - "Garment worker dies in Ashulia factory fire"
+  - "Why Bangladesh Must Reform Its Tax System" (opinion)
+  - "Ctg port handles record containers in April" (sub-national, single facility)
+  - "Small entrepreneur from Rajshahi builds export business" (human interest)
 
-  BANGLADESH:
-  - Economic data or official decisions: central bank actions, national budget, trade figures,
-    remittance data, fuel/utility price changes, foreign reserve status, currency moves,
-    stock market circuit breakers, IMF/World Bank actions on BD
-  - Government or institutional actions at national level: cabinet decisions, parliament acts,
-    nationwide policy rollouts, supreme court rulings, election commission decisions
-  - Infrastructure or public systems at national scale: nationwide power outages, countrywide
-    internet disruption, collapse of a national system (not one hospital, one road, one factory)
-  - Natural disasters or health emergencies declared at national or divisional scale (not one district)
-  - Foreign affairs: official bilateral talks, international sanctions or pressure on BD,
-    cross-border agreements or disputes (Teesta, Rohingya, trade), BD at UN/IMF/WTO,
-    foreign loans or aid formally approved
-  - Anything sub-national, sub-institutional, or about a single individual → NOISE
-
-  INTERNATIONAL: SIGNAL only for concrete events with verified cross-border consequences:
-  - Active armed conflicts between states, or formal declarations of war or ceasefire
-  - Multinational body decisions: UN Security Council resolutions, IMF/World Bank program approvals,
-    WTO rulings, NATO formal decisions, IAEA findings, ICC/ICJ verdicts
-  - Formal multilateral treaties signed or collapsed
-  - A single country's decision only if it moves something the world depends on immediately:
-    global energy supply disruption, collapse of a major financial system, verified nuclear
-    weapons development milestone, formal treaty withdrawal with immediate effect
-  - Internal politics, elections, leadership changes, and domestic policy of any single foreign
-    country → NOISE unless the direct cross-border consequence is stated in the title itself
+LANGUAGE NOTE: Bengali-language titles must be evaluated by the same criteria.
+Key Bengali economic/finance terms: অর্থনীতি, মূল্যস্ফীতি, রপ্তানি, আমদানি, রেমিট্যান্স, বাজেট, বাংলাদেশ ব্যাংক, মুদ্রানীতি, বিনিময় হার, রিজার্ভ, জিডিপি, ঋণ, রাজস্ব, বিনিয়োগ, শেয়ারবাজার, পুঁজিবাজার, ডলার, টাকা, সুদের হার, ব্যাংক খাত, এনপিএল, বৈদেশিক মুদ্রা, আইএমএফ, বিশ্বব্যাংক, মুদ্রাস্ফীতি, বৈদেশিক ঋণ, রাজকোষ, শুল্ক, ভ্যাট, এনবিআর
 
 WHEN IN DOUBT → NOISE.
 
-━━━ STEP 2 — DEDUPLICATE ━━━
+Output only: {{"signal": [0-based indices]}}. Valid JSON, no markdown, no explanation.
 
-From the SIGNAL set only: identify groups of titles covering the same story.
-For each group, keep only the lowest index. Discard the rest.
-Distinct topics must all be kept.
-
-━━━ OUTPUT ━━━
-
-Return ONLY the final 0-based indices to keep (SIGNAL, after deduplication) as a JSON object.
-No markdown, no explanation, no preamble.
-
-Format: {{"signal": [0-based indices]}}
-
-━━━ EXAMPLES ━━━
+EXAMPLES:
 
 Input:
-0. যুক্তরাষ্ট্র ও চীন ঐতিহাসিক বাণিজ্য চুক্তি স্বাক্ষর করেছে
-1. বাংলাদেশ ব্যাংক মূল্যস্ফীতি নিয়ন্ত্রণে সুদের হার বাড়াল
-2. ঢাকা বিশ্ববিদ্যালয়ে ছাত্র সংঘর্ষ
-3. জাতিসংঘ নিরাপত্তা পরিষদ সুদানে শান্তিরক্ষী মোতায়েনের পক্ষে ভোট দিয়েছে
-4. নতুন বাংলাদেশের প্রতিশ্রুতি
-5. বাংলাদেশ সারাদেশে জ্বালানি ভর্তুকি হ্রাস করল
-6. তিস্তা পানি বণ্টন নিয়ে বাংলাদেশের পররাষ্ট্রমন্ত্রীর ভারতের সঙ্গে আলোচনা
-7. কোনো একটি ক্লাবের কোচ বরখাস্ত
-8. যুক্তরাষ্ট্র জিএসপি পর্যালোচনার আগে শ্রম অধিকার নিয়ে বাংলাদেশকে সতর্ক করল
-9. চীন বাংলাদেশে ৩০০ কোটি ডলারের অবকাঠামো ঋণ দেওয়ার চুক্তি করল
-10. টেজগাঁওয়ের কারখানায় আগুন, ৩ নিহত
-11. বাংলাদেশ সংসদে নতুন সাইবার নিরাপত্তা আইন পাস
-Output: {{"signal": [0, 1, 3, 5, 6, 8, 9, 11]}}
-(index 2 → isolated single-location incident → NOISE; index 4 → opinion/editorial → NOISE; index 7 → sports/entertainment → NOISE; index 10 → isolated single-factory incident → NOISE)
+0. Bangladesh Bank raises policy rate by 50 basis points to curb inflation
+1. Grameenphone launches new data bundle for rural users
+2. বাংলাদেশের বৈদেশিক মুদ্রার রিজার্ভ ২০ বিলিয়নের নিচে নামল
+3. Dutch-Bangla Bank wins CSR award at annual banking summit
+4. রপ্তানি আয়ে ১২ শতাংশ প্রবৃদ্ধি, পোশাক খাতে রেকর্ড
+5. Government to privatise state-owned jute mills under reform programme
+6. জাতীয় রাজস্ব বোর্ড ভ্যাট কাঠামোয় বড় পরিবর্তন আনছে
+7. IMF approves $700m tranche for Bangladesh under ECF programme
+8. Local entrepreneur builds export business from Rajshahi village
+9. DSE general index falls 4% in single session, circuit breaker triggered
+10. Bangladesh current account deficit widens to record $8bn
+11. Premier Bank opens 10 new branches across the country
+12. টাকার বিপরীতে ডলারের দাম আরও বাড়ল, নতুন রেকর্ড
+13. কেন্দ্রীয় ব্যাংক সুদের হার বাড়াল, মূল্যস্ফীতি নিয়ন্ত্রণে পদক্ষেপ
+14. Dhaka court sentences former minister for corruption
+15. Bangladesh foreign debt crosses $100bn for first time
+Output: {{"signal": [0, 2, 4, 5, 6, 7, 9, 10, 12, 13, 15]}}
 
 Input:
-0. পাকিস্তান ও ভারত নিয়ন্ত্রণ রেখায় গোলাগুলি, হতাহতের খবর নিশ্চিত
-1. ঢাকার পোশাকশ্রমিকদের ধর্মঘটে শত শত কারখানা বন্ধ
-2. আইএমএফ বাংলাদেশে ৪৭০ কোটি ডলার ঋণ আনুষ্ঠানিকভাবে অনুমোদন করেছে
-3. বিএনপির ভবিষ্যৎ পথচলা
-4. সিলেটে ক্ষুদ্রঋণ কীভাবে জীবন বদলাচ্ছে
-5. আন্তর্জাতিক পরমাণু শক্তি সংস্থা নিশ্চিত করেছে ইরান ৮৪ শতাংশ বিশুদ্ধতায় ইউরেনিয়াম সমৃদ্ধ করেছে
-6. চট্টগ্রামে হত্যা মামলায় এক ব্যক্তি গ্রেপ্তার
-7. বাংলাদেশের বৈদেশিক মুদ্রার রিজার্ভ ২০০ কোটি ডলারের নিচে, টাকার রেকর্ড পতন
-8. প্রথম প্রান্তিকে পোশাক রপ্তানি ১২ শতাংশ কমেছে, বাংলাদেশ ব্যাংকের প্রতিবেদন
-9. আইএমএফ জরুরি ঋণ সুবিধা অনুমোদন করেছে, বাংলাদেশ পাচ্ছে ৪৭০ কোটি ডলার
-10. আন্তর্জাতিক অপরাধ আদালত কোনো দেশের বর্তমান রাষ্ট্রপ্রধানের বিরুদ্ধে গ্রেপ্তারি পরোয়ানা জারি করেছে
-11. বাংলাদেশ সংসদে নতুন তথ্যপ্রযুক্তি আইন পাস
-Output: {{"signal": [0, 1, 2, 5, 7, 8, 10, 11]}}
-(index 3 → opinion/editorial → NOISE; index 4 → sub-national human interest → NOISE; index 6 → isolated single arrest → NOISE; index 9 → duplicate of 2, dropped)
+0. রেমিট্যান্স প্রবাহ কমেছে, টাকার উপর চাপ বাড়ছে
+1. Bashundhara Group opens new shopping mall in Sylhet
+2. Bangladesh GDP growth falls to 5.1% in FY25, BBS data shows
+3. Dhaka Bank MDs speech at annual general meeting
+4. এনবিআর আমদানি শুল্ক কাঠামো পরিবর্তনের ঘোষণা দিল
+5. International Women's Day celebrated at BRAC office
+6. ADB approves $500m loan for Bangladesh infrastructure
+7. বাজেট ঘাটতি বাড়ছে, সরকারের ব্যাংক ঋণ রেকর্ড উচ্চতায়
+8. Fire breaks out at Tejgaon garment factory, 3 workers injured
+9. Bangladesh stock market regulator BSEC bans short selling nationwide
+10. ব্র্যাক ব্যাংকের নতুন মোবাইল ব্যাংকিং সেবা চালু
+Output: {{"signal": [0, 2, 4, 6, 7, 9]}}
 
 Article titles:
 {titles}
@@ -172,39 +154,34 @@ ET.register_namespace("media", MEDIA_NS)
 BD_TZ = timezone(timedelta(hours=6))
 
 STATS = {
-    "per_feed":           {},
-    "per_method":         {"KL": 0, "DIRECT": 0},
-    "total_fetched":      0,
-    "total_passed_age":   0,
-    "total_new":          0,
-    "total_signal":       0,
-    "total_after_dedup":  0,
-    "timestamp":          None,
+    "per_feed":             {},
+    "per_method":           {"KL": 0, "DIRECT": 0},
+    "total_fetched":        0,
+    "total_passed_age":     0,
+    "total_new":            0,
+    "total_signal_mistral": 0,
+    "total_signal":         0,
+    "timestamp":            None,
 }
 
 # -- I/O -----------------------------------------------------------------------
 
-def load_processed_articles():
-    if Path(PROCESSED_FILE).exists():
+def load_seen_links():
+    """Return the set of already-processed article links from seen.json."""
+    if Path(SEEN_FILE).exists():
         try:
-            with open(PROCESSED_FILE, "r", encoding="utf-8") as f:
+            with open(SEEN_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return {
-                "article_ids":   data.get("article_ids", []),
-                "article_links": data.get("article_links", []),
-                "last_updated":  data.get("last_updated"),
-            }
+            return set(data.get("links", []))
         except Exception:
             pass
-    return {"article_ids": [], "article_links": [], "last_updated": None}
+    return set()
 
 
-def save_processed_articles(data):
-    data["article_ids"]   = list(dict.fromkeys(data.get("article_ids", [])))
-    data["article_links"] = list(dict.fromkeys(data.get("article_links", [])))
-    data["last_updated"]  = datetime.utcnow().isoformat()
-    with open(PROCESSED_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+def save_seen_links(seen_links):
+    """Persist the full seen-links set to seen.json."""
+    with open(SEEN_FILE, "w", encoding="utf-8") as f:
+        json.dump({"links": sorted(seen_links)}, f, indent=2, ensure_ascii=False)
 
 
 def save_selected_articles(articles):
@@ -466,91 +443,81 @@ def fetch_all_feeds():
     return all_articles
 
 
-def get_new_articles(all_articles, processed_data):
-    processed_ids   = set(processed_data.get("article_ids", []))
-    processed_links = set(processed_data.get("article_links", []))
+def get_new_articles(all_articles, seen_links):
+    """Return articles whose link has not been seen before."""
     new = []
     for a in all_articles:
-        aid   = a.get("id")
-        alink = a.get("link")
-        if (aid and aid not in processed_ids) and (alink and alink not in processed_links):
-            new.append(a)
-        elif alink and alink not in processed_links and aid not in processed_ids:
+        link = a.get("link")
+        if link and link not in seen_links:
             new.append(a)
     return new
 
-# -- CLASSIFICATION + DEDUP (single Gemini call) -------------------------------
 
-def extract_keep_indices(text, max_index):
-    """Parse the {\"signal\": [...]} response from Gemini."""
+def dedup_by_link(articles):
+    """Remove articles sharing an identical link; keep first occurrence."""
+    seen  = set()
+    deduped = []
+    for a in articles:
+        link = a.get("link", "")
+        if link and link not in seen:
+            seen.add(link)
+            deduped.append(a)
+        elif not link:
+            deduped.append(a)
+    dropped = len(articles) - len(deduped)
+    if dropped:
+        print(f"Link dedup: removed {dropped} duplicate link(s).")
+    return deduped
+
+# -- CLASSIFICATION ------------------------------------------------------------
+
+def extract_signal_indices(text):
     text = text.replace("```json", "").replace("```", "").strip()
-
-    # Primary: full JSON object
     match = re.search(r"\{.*\}", text, flags=re.DOTALL)
     if match:
         try:
             obj = json.loads(match.group(0))
             if isinstance(obj, dict):
-                indices = obj.get("signal", obj.get("keep", []))
-                return sorted({i for i in indices if isinstance(i, int) and 0 <= i < max_index})
+                return [i for i in obj.get("signal", []) if isinstance(i, int)]
         except Exception:
             pass
-
-    # Fallback: bare array
-    m = re.search(r"\[[\d,\s]+\]", text)
+    m = re.search(r'"signal"\s*:\s*(\[.*?\])', text, flags=re.DOTALL)
     if m:
         try:
-            return sorted({i for i in json.loads(m.group(0)) if isinstance(i, int) and 0 <= i < max_index})
+            return [i for i in json.loads(m.group(1)) if isinstance(i, int)]
         except Exception:
             pass
-
     return []
 
 
-def classify_and_dedup(articles):
-    """Single Gemini call: classify as signal/noise AND deduplicate.
-    Returns (signal_articles, excluded_articles).
-    """
-    api_key = os.environ.get("GEMINI_API_KEY")
+def send_to_mistral(articles):
+    api_key = os.environ.get("MS")
     if not api_key or not articles:
-        return [], articles
+        return []
 
     try:
-        client      = genai.Client(api_key=api_key)
+        client      = Mistral(api_key=api_key)
         titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
 
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=CLASSIFY_AND_DEDUP_PROMPT.format(titles=titles_text),
-            config={"response_mime_type": "application/json"},
+        response = client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": PROMPT.format(titles=titles_text)}],
+            response_format={"type": "json_object"},
         )
 
-        raw = response.text if hasattr(response, "text") else ""
-        keep_indices = extract_keep_indices(raw, len(articles))
-
-        if not keep_indices and raw.strip():
-            print(f"Gemini response could not be parsed. Raw:\n{raw[:500]}")
-            return [], articles
-
-        keep_set         = set(keep_indices)
-        signal_articles  = [articles[i] for i in keep_indices]
-        excluded_articles = [articles[i] for i in range(len(articles)) if i not in keep_set]
-
-        dropped_by_dedup = 0  # not tracked separately since it's one pass — logged below
-        print(f"Gemini: {len(articles)} new → {len(signal_articles)} kept "
-              f"({len(excluded_articles)} excluded as noise/duplicate).")
-        return signal_articles, excluded_articles
+        text = response.choices[0].message.content or ""
+        return extract_signal_indices(text)
 
     except Exception as e:
-        print(f"Gemini classify+dedup error: {e}")
-        return [], articles
+        print(f"Mistral classification error: {e}")
+        return []
 
 # -- XML -----------------------------------------------------------------------
 
 def _fresh_channel(root, feed_title, feed_description):
     channel = ET.SubElement(root, "channel")
     ET.SubElement(channel, "title").text       = feed_title
-    ET.SubElement(channel, "link").text        = "https://yourusername.github.io/yourrepo/"
+    ET.SubElement(channel, "link").text        = "https://evilgodfahim.github.io/"
     ET.SubElement(channel, "description").text = feed_description
     return channel
 
@@ -575,8 +542,8 @@ def _load_or_create(output_file, feed_title, feed_description):
 
 
 def generate_xml_feed(articles, output_file, feed_title=None, feed_description=None):
-    feed_title       = feed_title       or "Curated News"
-    feed_description = feed_description or "AI-curated news feed"
+    feed_title       = feed_title       or "BD Economics & Finance"
+    feed_description = feed_description or "AI-curated Bangladesh economics and finance news"
 
     tree, root, channel = _load_or_create(output_file, feed_title, feed_description)
 
@@ -642,12 +609,11 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
 def print_stats():
     print("\nFetch statistics:")
-    print(f"  Timestamp:          {STATS.get('timestamp')}")
-    print(f"  Total fetched:      {STATS['total_fetched']}")
-    print(f"  Passed age cut:     {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
-    print(f"  New (unseen):       {STATS['total_new']}")
-    print(f"  Signal (Gemini):    {STATS['total_signal']}")
-    print(f"  After dedup:        {STATS['total_after_dedup']}  -> {OUTPUT_XML}")
+    print(f"  Timestamp:        {STATS.get('timestamp')}")
+    print(f"  Total fetched:    {STATS['total_fetched']}")
+    print(f"  Passed age cut:   {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
+    print(f"  New (unseen):     {STATS['total_new']}")
+    print(f"  Signal (Mistral): {STATS['total_signal_mistral']}  -> {OUTPUT_XML}")
     print("  Per-method:")
     for method, cnt in STATS["per_method"].items():
         print(f"    {method}: {cnt}")
@@ -660,61 +626,53 @@ def print_stats():
 # -- MAIN ----------------------------------------------------------------------
 
 def main():
-    processed_data = load_processed_articles()
-    all_articles   = fetch_all_feeds()
-    new_articles   = get_new_articles(all_articles, processed_data)
+    seen_links   = load_seen_links()
+    all_articles = fetch_all_feeds()
+    new_articles = get_new_articles(all_articles, seen_links)
+
+    # Deduplicate by link within this batch before Mistral
+    new_articles = dedup_by_link(new_articles)
 
     STATS["total_new"] = len(new_articles)
+    print(f"Sending {len(new_articles)} article(s) to Mistral for BD economics/finance filtering...")
 
-    if not new_articles:
-        print("No new articles. Skipping all file writes.")
+    mistral_indices = send_to_mistral(new_articles)
+    mistral_indices = [i for i in mistral_indices if 0 <= i < len(new_articles)]
+
+    STATS["total_signal_mistral"] = len(mistral_indices)
+    STATS["total_signal"]         = len(mistral_indices)
+
+    # Mark all fetched articles as seen regardless of signal/noise
+    # so they are never re-sent to the API on the next run
+    for a in new_articles:
+        link = a.get("link")
+        if link:
+            seen_links.add(link)
+    save_seen_links(seen_links)
+
+    if not mistral_indices:
+        print("Mistral returned no signal indices. Skipping XML writes.")
         print_stats()
         return
 
-    print(f"Classifying and deduplicating {len(new_articles)} new article(s) via Gemini...")
-    signal_articles, excluded_articles = classify_and_dedup(new_articles)
-
-    # Since classify_and_dedup does both in one pass, both stats are the same number
-    STATS["total_signal"]      = len(signal_articles)
-    STATS["total_after_dedup"] = len(signal_articles)
-
-    if not signal_articles:
-        print("Gemini returned no signal articles. Skipping signal file writes.")
-        # Still write excluded feed and mark articles as processed
-        if excluded_articles:
-            generate_xml_feed(
-                excluded_articles,
-                output_file=EXCLUDED_XML,
-                feed_title="Excluded News",
-                feed_description="Articles excluded after Gemini classification",
-            )
-        processed_data.setdefault("article_ids",   []).extend([a["id"]   for a in new_articles if a.get("id")])
-        processed_data.setdefault("article_links", []).extend([a["link"] for a in new_articles if a.get("link")])
-        save_processed_articles(processed_data)
-        STATS["timestamp"] = datetime.utcnow().isoformat()
-        save_stats()
-        print_stats()
-        return
+    signal_articles   = [new_articles[i] for i in mistral_indices]
+    excluded_articles = [new_articles[i] for i in range(len(new_articles)) if i not in set(mistral_indices)]
 
     generate_xml_feed(
         signal_articles,
         output_file=OUTPUT_XML,
-        feed_title="Curated News",
-        feed_description="AI-curated signal: Bangladesh affairs and international hard news",
+        feed_title="BD Economics & Finance",
+        feed_description="AI-curated Bangladesh national economics and finance news",
     )
 
     generate_xml_feed(
         excluded_articles,
         output_file=EXCLUDED_XML,
-        feed_title="Excluded News",
-        feed_description="Articles excluded after Gemini classification",
+        feed_title="Excluded (BD Economics Filter)",
+        feed_description="Articles excluded by BD economics and finance filter",
     )
 
     save_selected_articles(signal_articles)
-
-    processed_data.setdefault("article_ids",   []).extend([a["id"]   for a in new_articles if a.get("id")])
-    processed_data.setdefault("article_links", []).extend([a["link"] for a in new_articles if a.get("link")])
-    save_processed_articles(processed_data)
 
     STATS["timestamp"] = datetime.utcnow().isoformat()
     save_stats()
