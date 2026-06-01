@@ -504,9 +504,13 @@ def send_to_mistral(articles):
         client      = Mistral(api_key=api_key)
         titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
 
+        # FIX: use .replace() instead of .format() to avoid KeyError on the
+        # literal braces in the prompt (e.g. {"signal": [indices]})
+        prompt = PROMPT.replace("{titles}", titles_text)
+
         response = client.chat.complete(
             model=MISTRAL_MODEL,
-            messages=[{"role": "user", "content": PROMPT.format(titles=titles_text)}],
+            messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
         )
 
