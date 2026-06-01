@@ -8,13 +8,20 @@ Both Bangla and English titles are evaluated.
 
 Output:  econ_feed.xml
 Stats:   econ_stats.json
+
+Changes from previous version:
+- Two-stage XML recovery: parse as-is → sanitize → fresh (never silently loses items)
+- _sanitize_xml_bytes(): strips forbidden control chars + fixes bare & in URLs
+- _safe_text(): escapes & < > in plain text nodes (<link>, <guid>) on write
+- errors="replace" on file open guards against encoding corruption
 """
 
 import feedparser
+import html as _html_mod
 import json
 import os
-import time
 import re
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -39,8 +46,7 @@ FEED_URLS = [
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
     "https://evilgodfahim.github.io/bdl/final.xml",
     "https://evilgodfahim.github.io/bdlb/final.xml",
-
-"https://evilgodfahim.github.io/npc/output/merged.xml"
+    "https://evilgodfahim.github.io/npc/output/merged.xml",
 ]
 
 KL_API_FEEDS = set()
@@ -119,6 +125,49 @@ STATS = {
     "total_signal":         0,
     "timestamp":            None,
 }
+
+# -- XML SANITIZATION ----------------------------------------------------------
+
+# XML 1.0 forbids these control characters entirely (except \t \n \r)
+_CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+
+
+def _sanitize_xml_bytes(raw: str) -> str:
+    """
+    Two-pass sanitizer applied to raw XML text before ET.fromstring().
+
+    Pass 1 — strip control characters that XML 1.0 forbids (everything
+    except \\t, \\n, \\r).  These appear in some RSS feeds that embed raw
+    bytestrings from scraped pages.
+
+    Pass 2 — fix bare & that are not already part of a valid XML entity
+    reference (&amp; &lt; &gt; &quot; &apos; &#digits; &#xhex;).
+    This is the direct cause of "EntityRef: expecting ';'" parse errors
+    that arise from URLs like https://example.com?a=1&b=2 written into
+    plain text nodes without escaping.
+    """
+    # Pass 1: control chars
+    raw = _CTRL_RE.sub("", raw)
+    # Pass 2: bare ampersands
+    raw = re.sub(
+        r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)',
+        '&amp;',
+        raw,
+    )
+    return raw
+
+
+def _safe_text(value: str) -> str:
+    """
+    Escape a string for use as a plain XML text node value (not CDATA).
+    Converts & → &amp;, < → &lt;, > → &gt;.
+    Used for <link> and <guid> where CDATA is not conventionally used.
+    This prevents the pipeline from re-introducing the very corruption
+    that _sanitize_xml_bytes() was written to clean up.
+    """
+    if not value:
+        return value
+    return _html_mod.escape(value, quote=False)
 
 # -- I/O -----------------------------------------------------------------------
 
@@ -217,10 +266,10 @@ def parse_date(entry):
 IMG_SRC_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.I)
 
 
-def find_image_in_html(html, base=None):
-    if not html:
+def find_image_in_html(html_text, base=None):
+    if not html_text:
         return None
-    m = IMG_SRC_RE.search(html)
+    m = IMG_SRC_RE.search(html_text)
     if not m:
         return None
     return normalize_link(m.group(1).strip(), base=base)
@@ -262,9 +311,9 @@ def extract_image_url(entry, base_link=None):
 
     links = entry.get("links")
     if links and isinstance(links, list):
-        for l in links:
-            if l.get("rel") == "enclosure":
-                href = l.get("href")
+        for lnk in links:
+            if lnk.get("rel") == "enclosure":
+                href = lnk.get("href")
                 if href:
                     return normalize_link(href, base=base_link)
 
@@ -411,7 +460,7 @@ def get_new_articles(all_articles, seen_links):
 
 def dedup_by_link(articles):
     """Remove articles sharing an identical link; keep first occurrence."""
-    seen  = set()
+    seen    = set()
     deduped = []
     for a in articles:
         link = a.get("link", "")
@@ -479,18 +528,64 @@ def _fresh_channel(root, feed_title, feed_description):
 
 
 def _load_or_create(output_file, feed_title, feed_description):
+    """
+    Load an existing RSS file into an ElementTree, with two-stage recovery.
+
+    Stage 1 — parse the file as-is with ET.parse().  This is the fast path
+    and succeeds for any well-formed file.
+
+    Stage 2 — if Stage 1 raises ParseError, read the raw text, run it through
+    _sanitize_xml_bytes() (strips control chars, fixes bare &), and retry with
+    ET.fromstring().  This recovers all existing <item> elements even when the
+    file contains unescaped ampersands in URLs.
+
+    Fallback — if Stage 2 also fails, log the error and start a fresh feed.
+    This is the last resort; existing items cannot be recovered from a truly
+    broken file, but the pipeline continues without crashing.
+    """
     ET.register_namespace("media", MEDIA_NS)
+
     if Path(output_file).exists():
+        # ---- Stage 1: direct parse ----
         try:
             tree    = ET.parse(output_file)
             root    = tree.getroot()
             channel = root.find("channel")
             if channel is not None:
                 return tree, root, channel
+            # Root present but no channel node — graft one on
             channel = _fresh_channel(root, feed_title, feed_description)
             return tree, root, channel
-        except ET.ParseError:
-            pass
+
+        except ET.ParseError as e:
+            print(f"[WARN] XML parse failed on first attempt ({output_file}): {e}")
+            print("[INFO] Retrying with sanitized content…")
+
+        # ---- Stage 2: sanitize then parse ----
+        try:
+            # errors="replace" prevents UnicodeDecodeError on stray non-UTF-8 bytes
+            with open(output_file, "r", encoding="utf-8", errors="replace") as fh:
+                raw = fh.read()
+
+            clean   = _sanitize_xml_bytes(raw)
+            root    = ET.fromstring(clean)
+            tree    = ET.ElementTree(root)
+            channel = root.find("channel")
+
+            if channel is not None:
+                recovered = len(channel.findall("item"))
+                print(f"[INFO] Sanitization succeeded — recovered {recovered} existing item(s).")
+                return tree, root, channel
+
+            # Root parsed but no channel
+            channel = _fresh_channel(root, feed_title, feed_description)
+            return tree, root, channel
+
+        except ET.ParseError as e:
+            print(f"[WARN] XML still unparseable after sanitization ({output_file}): {e}")
+            print("[WARN] Starting a fresh feed — existing items in this file cannot be recovered.")
+
+    # ---- Fallback: fresh feed ----
     root    = ET.Element("rss", {"version": "2.0"})
     tree    = ET.ElementTree(root)
     channel = _fresh_channel(root, feed_title, feed_description)
@@ -515,13 +610,20 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         if not link or link in existing_links:
             continue
 
-        item         = ET.SubElement(channel, "item")
+        item = ET.SubElement(channel, "item")
+
+        # <title> and <description> via CDATA — safe as-is
         ET.SubElement(item, "title").text       = a.get("title", "") or ""
-        ET.SubElement(item, "link").text        = link
+        ET.SubElement(item, "description").text = a.get("description", "") or ""
+
+        # <link> and <guid> are plain text nodes — MUST be escaped so that
+        # URLs containing & don't produce invalid XML (e.g. ?a=1&b=2 → &amp;)
+        ET.SubElement(item, "link").text = _safe_text(link)
+
         guid_val     = a.get("id") or link
         is_permalink = "true" if guid_val.startswith("http") else "false"
-        ET.SubElement(item, "guid", {"isPermaLink": is_permalink}).text = guid_val
-        ET.SubElement(item, "description").text = a.get("description", "") or ""
+        ET.SubElement(item, "guid", {"isPermaLink": is_permalink}).text = _safe_text(guid_val)
+
         if a.get("published"):
             ET.SubElement(item, "pubDate").text = a["published"]
 
@@ -534,6 +636,7 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         existing_links.add(link)
         added += 1
 
+    # Trim oldest items when feed exceeds MAX_FEED_ITEMS
     all_items = channel.findall("item")
     overflow  = len(all_items) - MAX_FEED_ITEMS
     if overflow > 0:
@@ -559,6 +662,8 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         fh.write('<?xml version="1.0" encoding="UTF-8"?>\n' + body)
         fh.truncate()
 
+    print(f"  → {added} new item(s) written to {output_file}  "
+          f"(total in feed: {len(channel.findall('item'))})")
     return added
 
 # -- STATS ---------------------------------------------------------------------
@@ -590,7 +695,7 @@ def main():
     new_articles = dedup_by_link(new_articles)
 
     STATS["total_new"] = len(new_articles)
-    print(f"Sending {len(new_articles)} article(s) to Mistral for BD economics/finance filtering...")
+    print(f"Sending {len(new_articles)} article(s) to Mistral for BD economics/finance filtering…")
 
     mistral_indices = send_to_mistral(new_articles)
     mistral_indices = [i for i in mistral_indices if 0 <= i < len(new_articles)]
