@@ -39,6 +39,8 @@ FEED_URLS = [
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
     "https://evilgodfahim.github.io/bdl/final.xml",
     "https://evilgodfahim.github.io/bdlb/final.xml",
+
+"https://evilgodfahim.github.io/npc/output/merged.xml"
 ]
 
 KL_API_FEEDS = set()
