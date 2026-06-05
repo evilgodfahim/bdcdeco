@@ -1620,5 +1620,29 @@
     "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
     "thumbnail": "https://media-stg.assettype.com/bdnews/import/bangla/imgAll/2026June/SM/tarique-rahman-fm-cabinet-040626-1780587660.jpg",
     "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.newagebd.net/post/banking/301613/bb-to-set-loan-approval-cap-in-tk-60000cr-package",
+    "title": "BB to set loan approval cap in Tk 60,000cr package",
+    "link": "https://www.newagebd.net/post/banking/301613/bb-to-set-loan-approval-cap-in-tk-60000cr-package",
+    "description": "Bangladesh Bank is considering imposing limits on large loans approvals under its newly announced Tk 60,000 crore stimulus package by linking loan amounts to borrowers’ assets and annual sales in an effort to prevent excessive lending and reduce the risk of misuse......",
+    "published": "Fri, 05 Jun 2026 08:51:34 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
+  },
+  {
+    "id": "https://www.newagebd.net/post/banking/301610/bb-launches-tk-20000cr-stimulus-fund",
+    "title": "BB launches Tk 20,000cr stimulus fund",
+    "link": "https://www.newagebd.net/post/banking/301610/bb-launches-tk-20000cr-stimulus-fund",
+    "description": "Bangladesh Bank on Thursday launched a Tk 20,000 crore pre-finance scheme under its Tk 60,000 crore stimulus package, capping loans to a single company or business group at Tk 200 crore to prevent excessive concentration of funds and ensure wider access to financing......",
+    "published": "Fri, 05 Jun 2026 08:51:34 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
+  },
+  {
+    "id": "https://www.newagebd.net/post/country/301627/cabinet-approves-fdi-incentive-policy-bmu-amendment-law",
+    "title": "Cabinet approves FDI incentive policy, BMU amendment law",
+    "link": "https://www.newagebd.net/post/country/301627/cabinet-approves-fdi-incentive-policy-bmu-amendment-law",
+    "description": "The cabinet on Thursday approved the draft Foreign Direct Investment (FDI) Incentive Scheme Policy 2026 and the Bangladesh Medical University (Amendment) Act 2026 at its ninth meeting....",
+    "published": "Fri, 05 Jun 2026 08:51:34 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
   }
 ]
