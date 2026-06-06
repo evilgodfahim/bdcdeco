@@ -2154,5 +2154,33 @@
     "description": "The World Trade Organization (WTO) has underscored the importance of...",
     "published": "Sun, 07 Jun 2026 01:12:34 +0600",
     "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
+  },
+  {
+    "id": "https://thefinancialexpress.com.bd/economy/tariff-cuts-on-some-350-items-likely-in-new-budget",
+    "title": "Tariff cuts on some 350 items likely in new budget",
+    "link": "https://thefinancialexpress.com.bd/economy/tariff-cuts-on-some-350-items-likely-in-new-budget",
+    "description": "A slew of business-friendly measures, including tariff cuts on nearly 350 items, may be stipulated in the upcoming national budget in a taxation remodelling by the new government.\n\n\n\nIn a move to rationalise trade taxes, the National Board of Revenue (NBR) lately plans to reduce customs duty on",
+    "published": "Sun, 07 Jun 2026 02:58:34 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
+    "thumbnail": "https://thefe-bd.sgp1.cdn.digitaloceanspaces.com/posts/156100/p9-taxation-outline.jpg",
+    "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.jugantor.com/national/1110175",
+    "title": "ত্রয়োদশ জাতীয় সংসদের প্রথম বাজেট অধিবেশন শুরু আগামীকাল",
+    "link": "https://www.jugantor.com/national/1110175",
+    "description": "গত ১২ ফেব্রুয়ারি অনুষ্ঠিত জাতীয় সংসদ নির্বাচনে বিএনপি সরকার গঠনের পর এটি হতে যাচ্ছে সংসদের প্রথম বাজেট অধিবেশন।",
+    "published": "Sun, 07 Jun 2026 02:58:34 +0600",
+    "source": "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
+    "thumbnail": "https://cdn.jugantor.com/assets/news_photos/2026/06/06/parliament-6a242a933ceaf.jpg",
+    "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.daily-sun.com/news/878685",
+    "title": "First budget session of 13th Parliament begins today",
+    "link": "https://www.daily-sun.com/news/878685",
+    "description": "",
+    "published": "Sun, 07 Jun 2026 02:58:34 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
   }
 ]
