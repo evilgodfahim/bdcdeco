@@ -2,58 +2,58 @@
   "per_feed": {
     "https://evilgodfahim.github.io/mr/curated_feedb.xml": {
       "fetched": 500,
-      "passed_age": 23,
-      "capped": 23
+      "passed_age": 26,
+      "capped": 26
     },
     "https://evilgodfahim.github.io/mr/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 43,
-      "capped": 43
+      "passed_age": 74,
+      "capped": 74
     },
     "https://evilgodfahim.github.io/mr/curated_feed_edit.xml": {
-      "fetched": 518,
-      "passed_age": 47,
-      "capped": 47
+      "fetched": 500,
+      "passed_age": 44,
+      "capped": 44
     },
     "https://evilgodfahim.github.io/mr/curated_feed_bdit.xml": {
-      "fetched": 539,
-      "passed_age": 85,
-      "capped": 85
+      "fetched": 500,
+      "passed_age": 98,
+      "capped": 98
     },
     "https://evilgodfahim.github.io/bdcd/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 67,
-      "capped": 67
+      "passed_age": 60,
+      "capped": 60
     },
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 64,
-      "capped": 64
+      "passed_age": 68,
+      "capped": 68
     },
     "https://evilgodfahim.github.io/bdl/final.xml": {
-      "fetched": 57,
-      "passed_age": 2,
-      "capped": 2
+      "fetched": 51,
+      "passed_age": 42,
+      "capped": 42
     },
     "https://evilgodfahim.github.io/bdlb/final.xml": {
-      "fetched": 94,
-      "passed_age": 31,
-      "capped": 31
+      "fetched": 41,
+      "passed_age": 32,
+      "capped": 32
     },
     "https://evilgodfahim.github.io/npc/output/merged.xml": {
       "fetched": 1000,
-      "passed_age": 522,
+      "passed_age": 508,
       "capped": 100
     }
   },
   "per_method": {
     "KL": 0,
-    "DIRECT": 4208
+    "DIRECT": 4092
   },
-  "total_fetched": 4208,
-  "total_passed_age": 884,
-  "total_new": 118,
-  "total_signal_mistral": 4,
-  "total_signal": 4,
-  "timestamp": "2026-06-05T21:20:57.877854"
+  "total_fetched": 4092,
+  "total_passed_age": 952,
+  "total_new": 240,
+  "total_signal_mistral": 7,
+  "total_signal": 7,
+  "timestamp": "2026-06-06T06:49:32.211511"
 }
