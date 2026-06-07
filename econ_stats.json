@@ -2,58 +2,58 @@
   "per_feed": {
     "https://evilgodfahim.github.io/mr/curated_feedb.xml": {
       "fetched": 500,
-      "passed_age": 26,
-      "capped": 26
+      "passed_age": 37,
+      "capped": 37
     },
     "https://evilgodfahim.github.io/mr/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 74,
-      "capped": 74
+      "passed_age": 57,
+      "capped": 57
     },
     "https://evilgodfahim.github.io/mr/curated_feed_edit.xml": {
-      "fetched": 532,
-      "passed_age": 58,
-      "capped": 58
+      "fetched": 500,
+      "passed_age": 45,
+      "capped": 45
     },
     "https://evilgodfahim.github.io/mr/curated_feed_bdit.xml": {
-      "fetched": 513,
-      "passed_age": 72,
-      "capped": 72
+      "fetched": 500,
+      "passed_age": 68,
+      "capped": 68
     },
     "https://evilgodfahim.github.io/bdcd/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 67,
-      "capped": 67
+      "passed_age": 60,
+      "capped": 60
     },
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 78,
-      "capped": 78
+      "passed_age": 81,
+      "capped": 81
     },
     "https://evilgodfahim.github.io/bdl/final.xml": {
       "fetched": 51,
-      "passed_age": 2,
-      "capped": 2
+      "passed_age": 47,
+      "capped": 47
     },
     "https://evilgodfahim.github.io/bdlb/final.xml": {
-      "fetched": 41,
-      "passed_age": 1,
-      "capped": 1
+      "fetched": 57,
+      "passed_age": 47,
+      "capped": 47
     },
     "https://evilgodfahim.github.io/npc/output/merged.xml": {
       "fetched": 1000,
-      "passed_age": 531,
+      "passed_age": 490,
       "capped": 100
     }
   },
   "per_method": {
     "KL": 0,
-    "DIRECT": 4137
+    "DIRECT": 4108
   },
-  "total_fetched": 4137,
-  "total_passed_age": 909,
-  "total_new": 51,
-  "total_signal_mistral": 2,
-  "total_signal": 2,
-  "timestamp": "2026-06-06T22:58:51.909927"
+  "total_fetched": 4108,
+  "total_passed_age": 932,
+  "total_new": 270,
+  "total_signal_mistral": 25,
+  "total_signal": 25,
+  "timestamp": "2026-06-07T07:51:05.114176"
 }
