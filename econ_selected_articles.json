@@ -2630,5 +2630,33 @@
     "description": "With an upscale new budget...",
     "published": "Mon, 08 Jun 2026 01:13:27 +0600",
     "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
+  },
+  {
+    "id": "https://www.tbsnews.net/economy/private-sector-credit-growth-stands-475-april-1456796",
+    "title": "Private sector credit growth stands at 4.75% in April",
+    "link": "https://www.tbsnews.net/economy/private-sector-credit-growth-stands-475-april-1456796",
+    "description": "Economists and bankers cite weak investment appetite, global fuel crisis and sluggish exports behind the slowdown",
+    "published": "Mon, 08 Jun 2026 03:05:43 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
+    "thumbnail": "https://www.tbsnews.net/sites/default/files/styles/medium/public/images/2026/06/08/private_sector.jpg",
+    "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.tbsnews.net/economy/banking/govt-plans-mandatory-tin-all-bank-accounts-holders-1456786",
+    "title": "Govt plans mandatory TIN for all bank accounts holders",
+    "link": "https://www.tbsnews.net/economy/banking/govt-plans-mandatory-tin-all-bank-accounts-holders-1456786",
+    "description": "The proposed measure may exempt students, allowance recipients and gazette-notified individuals or entities",
+    "published": "Mon, 08 Jun 2026 03:05:43 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
+    "thumbnail": "https://www.tbsnews.net/sites/default/files/styles/medium/public/images/2026/06/08/tin_0.jpg",
+    "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.thedailystar.net/business/economy/news/govt-unveil-5-yr-corporate-tax-roadmap-rates-unchanged-4193061",
+    "title": "Govt to unveil 5-yr corporate tax roadmap, with rates unchanged",
+    "link": "https://www.thedailystar.net/business/economy/news/govt-unveil-5-yr-corporate-tax-roadmap-rates-unchanged-4193061",
+    "description": "",
+    "published": "Mon, 08 Jun 2026 03:05:43 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml"
   }
 ]
