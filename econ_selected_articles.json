@@ -2492,5 +2492,43 @@
     "description": "",
     "published": "Sun, 07 Jun 2026 16:25:09 +0600",
     "source": "https://evilgodfahim.github.io/bdcdb/curated_feed.xml"
+  },
+  {
+    "id": "https://www.tbsnews.net/economy/inflation-jumps-942-may-food-non-food-prices-surge-1456341",
+    "title": "Inflation jumps to 9.42% in May as food, non-food prices surge",
+    "link": "https://www.tbsnews.net/economy/inflation-jumps-942-may-food-non-food-prices-surge-1456341",
+    "description": "Concurrently, the non-food sector registered even higher price pressures, with non-food inflation accelerating to 9.71% in May",
+    "published": "Sun, 07 Jun 2026 19:30:00 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml",
+    "thumbnail": "https://www.tbsnews.net/sites/default/files/styles/medium/public/images/2026/04/12/inflation.png",
+    "thumbnail_type": "image/png"
+  },
+  {
+    "id": "https://thefinancialexpress.com.bd/economy/bangladesh/businesses-get-until-june-30-to-upload-paper-vat-returns-to-e-vat-system",
+    "title": "Businesses get until June 30 to upload paper VAT returns to e-VAT system",
+    "link": "https://thefinancialexpress.com.bd/economy/bangladesh/businesses-get-until-june-30-to-upload-paper-vat-returns-to-e-vat-system",
+    "description": "The National Board of Revenue (NBR) has extended the deadline for businesses to enter previously submitted paper-based VAT returns into the electronic VAT (e-VAT) system until June 30, 2026, ahead of the planned introduction of mandatory online VAT return filing from July.\nAccording to an NBR pres",
+    "published": "Sun, 07 Jun 2026 19:30:00 +0600",
+    "source": "https://evilgodfahim.github.io/bdcd/curated_feed.xml"
+  },
+  {
+    "id": "f1262795-9ca4-4bb1-abc1-ca4a29ae921b",
+    "title": "১৬ মাসের মধ্যে সর্বোচ্চ মূল্যস্ফীতি মে মাসে",
+    "link": "https://www.prothomalo.com/business/economics/cfbqrwzqdw",
+    "description": "২০২৫ সালের ফেব্রুয়ারি মাসের পর মে মাসে সর্বোচ্চ মূল্যস্ফীতি। টানা দুই মাস ধরে মূল্যস্ফীতি ৯ শতাংশের বেশি আছে।",
+    "published": "Sun, 07 Jun 2026 19:30:00 +0600",
+    "source": "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
+    "thumbnail": "https://media.prothomalo.com/prothomalo-bangla/2022-06/7119b225-9468-4ee8-afc8-7166c2c75df0/d75b62df-3a8b-4d7c-ba5b-dfb827ea6f9c.jpg?w=280",
+    "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://bangla.bdnews24.com/economy/8a37f4da35b0",
+    "title": "অনলাইনে ভ্যাট রিটার্ন এন্ট্রির সময় বাড়ল ৩০ জুন পর্যন্ত",
+    "link": "https://bangla.bdnews24.com/economy/8a37f4da35b0",
+    "description": "[অর্থনীতি] অনলাইনে ভ্যাট রিটার্ন এন্ট্রির সময় বাড়ল ৩০ জুন পর্যন্ত",
+    "published": "Sun, 07 Jun 2026 19:30:00 +0600",
+    "source": "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
+    "thumbnail": "https://media-stg.assettype.com/bdnews/import/bangla/imgAll/2025February/SM/national-board-of-revenue-260125-01-1738525960.jpg",
+    "thumbnail_type": "image/jpeg"
   }
 ]
