@@ -2,103 +2,103 @@
   "per_feed": {
     "https://evilgodfahim.github.io/mr/curated_feedb.xml": {
       "fetched": 500,
-      "passed_age": 62,
-      "capped": 62
+      "passed_age": 30,
+      "capped": 30
     },
     "https://evilgodfahim.github.io/mr/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 97,
-      "capped": 97
+      "passed_age": 120,
+      "capped": 120
     },
     "https://evilgodfahim.github.io/mr/curated_feed_edit.xml": {
-      "fetched": 533,
-      "passed_age": 54,
-      "capped": 54
+      "fetched": 500,
+      "passed_age": 49,
+      "capped": 49
     },
     "https://evilgodfahim.github.io/mr/curated_feed_bdit.xml": {
-      "fetched": 516,
-      "passed_age": 61,
-      "capped": 61
+      "fetched": 500,
+      "passed_age": 68,
+      "capped": 68
     },
     "https://evilgodfahim.github.io/bdcd/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 82,
-      "capped": 82
+      "passed_age": 81,
+      "capped": 81
     },
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 88,
-      "capped": 88
+      "passed_age": 89,
+      "capped": 89
     },
     "https://evilgodfahim.github.io/bdl/final.xml": {
-      "fetched": 57,
-      "passed_age": 0,
-      "capped": 0
+      "fetched": 61,
+      "passed_age": 57,
+      "capped": 57
     },
     "https://evilgodfahim.github.io/bdlb/final.xml": {
-      "fetched": 98,
-      "passed_age": 8,
-      "capped": 8
+      "fetched": 94,
+      "passed_age": 89,
+      "capped": 89
     },
     "https://evilgodfahim.github.io/npc/output/merged.xml": {
       "fetched": 1000,
-      "passed_age": 444,
-      "capped": 444
+      "passed_age": 426,
+      "capped": 426
     },
     "https://news.google.com/rss/search?q=Bangladesh+economy+OR+economic+OR+GDP+OR+inflation+OR+%22central+bank%22+OR+%22Bangladesh+Bank%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
       "fetched": 100,
-      "passed_age": 37,
-      "capped": 37
+      "passed_age": 40,
+      "capped": 40
     },
     "https://news.google.com/rss/search?q=Bangladesh+budget+OR+revenue+OR+NBR+OR+tax+OR+export+OR+import+OR+remittance+OR+%22trade+deficit%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
       "fetched": 100,
-      "passed_age": 53,
-      "capped": 53
+      "passed_age": 51,
+      "capped": 51
     },
     "https://news.google.com/rss/search?q=Bangladesh+DSE+OR+CSE+OR+%22stock+market%22+OR+shares+OR+banking+OR+taka+OR+%22foreign+exchange%22+OR+forex+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
-      "fetched": 55,
-      "passed_age": 15,
-      "capped": 15
+      "fetched": 54,
+      "passed_age": 23,
+      "capped": 23
     },
     "https://news.google.com/rss/search?q=Bangladesh+investment+OR+FDI+OR+garments+OR+RMG+OR+EPZ+OR+BIDA+OR+industry+OR+factory+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
-      "fetched": 81,
+      "fetched": 79,
       "passed_age": 21,
       "capped": 21
     },
     "https://news.google.com/rss/search?q=Bangladesh+IMF+OR+%22World+Bank%22+OR+loan+OR+debt+OR+%22foreign+reserve%22+OR+dollar+OR+ADB+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
       "fetched": 41,
-      "passed_age": 6,
-      "capped": 6
+      "passed_age": 7,
+      "capped": 7
     },
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%B8%E0%A7%8D%E0%A6%AB%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn": {
-      "fetched": 50,
-      "passed_age": 16,
-      "capped": 16
+      "fetched": 39,
+      "passed_age": 13,
+      "capped": 13
     },
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%B6%E0%A7%87%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%B0%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A6%BE%E0%A6%B0+OR+%E0%A6%A1%E0%A6%BF%E0%A6%8F%E0%A6%B8%E0%A6%87+OR+%E0%A6%9F%E0%A6%BE%E0%A6%95%E0%A6%BE+OR+%E0%A6%A1%E0%A6%B2%E0%A6%BE%E0%A6%B0+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%AE%E0%A7%81%E0%A6%A6%E0%A7%8D%E0%A6%B0%E0%A6%BE+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn": {
       "fetched": 100,
-      "passed_age": 30,
-      "capped": 30
+      "passed_age": 37,
+      "capped": 37
     },
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9F%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn": {
       "fetched": 100,
-      "passed_age": 68,
-      "capped": 68
+      "passed_age": 67,
+      "capped": 67
     },
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%AD+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn": {
-      "fetched": 44,
-      "passed_age": 4,
-      "capped": 4
+      "fetched": 45,
+      "passed_age": 5,
+      "capped": 5
     }
   },
   "per_method": {
     "KL": 0,
-    "DIRECT": 4875
+    "DIRECT": 4813
   },
-  "total_fetched": 4875,
-  "total_passed_age": 1146,
-  "total_new": 48,
-  "total_signal_mistral": 9,
-  "total_signal": 9,
-  "timestamp": "2026-06-09T02:38:51.950387"
+  "total_fetched": 4813,
+  "total_passed_age": 1273,
+  "total_new": 400,
+  "total_signal_mistral": 22,
+  "total_signal": 22,
+  "timestamp": "2026-06-09T07:43:56.102020"
 }
