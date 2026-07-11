@@ -22,28 +22,28 @@
     },
     "https://evilgodfahim.github.io/bdcd/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 34,
-      "capped": 34
+      "passed_age": 33,
+      "capped": 33
     },
     "https://evilgodfahim.github.io/bdcdb/curated_feed.xml": {
       "fetched": 500,
-      "passed_age": 57,
-      "capped": 57
+      "passed_age": 62,
+      "capped": 62
     },
     "https://evilgodfahim.github.io/bdl/final.xml": {
       "fetched": 45,
-      "passed_age": 3,
-      "capped": 3
+      "passed_age": 1,
+      "capped": 1
     },
     "https://evilgodfahim.github.io/bdlb/final.xml": {
       "fetched": 58,
-      "passed_age": 29,
-      "capped": 29
+      "passed_age": 4,
+      "capped": 4
     },
     "https://evilgodfahim.github.io/npc/output/merged.xml": {
       "fetched": 1000,
-      "passed_age": 509,
-      "capped": 509
+      "passed_age": 520,
+      "capped": 520
     },
     "https://news.google.com/rss/search?q=Bangladesh+economy+OR+economic+OR+GDP+OR+inflation+OR+%22central+bank%22+OR+%22Bangladesh+Bank%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
       "fetched": 100,
@@ -52,21 +52,21 @@
     },
     "https://news.google.com/rss/search?q=Bangladesh+budget+OR+revenue+OR+NBR+OR+tax+OR+export+OR+import+OR+remittance+OR+%22trade+deficit%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
       "fetched": 100,
-      "passed_age": 21,
-      "capped": 21
+      "passed_age": 24,
+      "capped": 24
     },
     "https://news.google.com/rss/search?q=Bangladesh+DSE+OR+CSE+OR+%22stock+market%22+OR+shares+OR+banking+OR+taka+OR+%22foreign+exchange%22+OR+forex+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
-      "fetched": 55,
-      "passed_age": 11,
-      "capped": 11
+      "fetched": 54,
+      "passed_age": 10,
+      "capped": 10
     },
     "https://news.google.com/rss/search?q=Bangladesh+investment+OR+FDI+OR+garments+OR+RMG+OR+EPZ+OR+BIDA+OR+industry+OR+factory+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
-      "fetched": 84,
-      "passed_age": 19,
-      "capped": 19
+      "fetched": 85,
+      "passed_age": 18,
+      "capped": 18
     },
     "https://news.google.com/rss/search?q=Bangladesh+IMF+OR+%22World+Bank%22+OR+loan+OR+debt+OR+%22foreign+reserve%22+OR+dollar+OR+ADB+when:7d&hl=en-BD&gl=BD&ceid=BD:en": {
-      "fetched": 38,
+      "fetched": 40,
       "passed_age": 11,
       "capped": 11
     },
@@ -93,12 +93,12 @@
   },
   "per_method": {
     "KL": 0,
-    "DIRECT": 4830
+    "DIRECT": 4832
   },
-  "total_fetched": 4830,
-  "total_passed_age": 965,
-  "total_new": 164,
-  "total_signal_mistral": 10,
-  "total_signal": 10,
-  "timestamp": "2026-07-11T20:42:32.445156"
+  "total_fetched": 4832,
+  "total_passed_age": 954,
+  "total_new": 91,
+  "total_signal_mistral": 5,
+  "total_signal": 5,
+  "timestamp": "2026-07-11T22:42:54.400636"
 }
