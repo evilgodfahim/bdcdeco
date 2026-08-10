@@ -45208,5 +45208,49 @@
     "source": "https://evilgodfahim.github.io/bdcdb/curated_feed.xml",
     "thumbnail": "https://media-stg.assettype.com/bdnews/import/bangla/imgAll/2026August/SM/chittagong-port-bondor-250525-01-1786300525.jpg",
     "thumbnail_type": "image/jpeg"
+  },
+  {
+    "id": "https://www.jugantor.com/tp-second-edition/1138534",
+    "title": "চার আর্থিক প্রতিষ্ঠান বন্ধে প্রশাসক নিয়োগ",
+    "link": "https://www.jugantor.com/tp-second-edition/1138534",
+    "description": "",
+    "published": "Mon, 10 Aug 2026 07:15:41 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml"
+  },
+  {
+    "id": "https://www.kalbela.com/ajkerpatrika/lastpage/317167",
+    "title": "চার আর্থিক প্রতিষ্ঠান অকার্যকর ঘোষণা বসল প্রশাসক",
+    "link": "https://www.kalbela.com/ajkerpatrika/lastpage/317167",
+    "description": "<img src=\"https://www.kalbela.com/assets/images/kalbela-news-logo.webp\" />",
+    "published": "Mon, 10 Aug 2026 07:15:41 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml",
+    "thumbnail": "https://www.kalbela.com/assets/images/kalbela-news-logo.webp",
+    "thumbnail_type": "image/webp"
+  },
+  {
+    "id": "https://www.kalbela.com/ajkerpatrika/banijjobela/317150",
+    "title": "বাড়ল জেট ফুয়েলের দাম",
+    "link": "https://www.kalbela.com/ajkerpatrika/banijjobela/317150",
+    "description": "<img src=\"https://www.kalbela.com/assets/images/kalbela-news-logo.webp\" />",
+    "published": "Mon, 10 Aug 2026 07:15:41 +0600",
+    "source": "https://evilgodfahim.github.io/npc/output/merged.xml",
+    "thumbnail": "https://www.kalbela.com/assets/images/kalbela-news-logo.webp",
+    "thumbnail_type": "image/webp"
+  },
+  {
+    "id": "CBMibEFVX3lxTE93ODBHRFdUSXZHSDFvUWdsZGltcHhjZ19SdElBaXBrbnIzWlM3OGxRSjkxekNLWVNZRHdKYWJad3J2cWJQR3F6VGRMUlhFcmNKNHJzbUhEcC1xWFVkUGZ6ZjV2aTFXbVp4MHBwTw",
+    "title": "Bangladesh's gross forex reserves rise to $36.86bn - daily-sun.com",
+    "link": "https://www.daily-sun.com/index.php/business/891412/report-2",
+    "description": "<a href=\"https://news.google.com/rss/articles/CBMibEFVX3lxTE93ODBHRFdUSXZHSDFvUWdsZGltcHhjZ19SdElBaXBrbnIzWlM3OGxRSjkxekNLWVNZRHdKYWJad3J2cWJQR3F6VGRMUlhFcmNKNHJzbUhEcC1xWFVkUGZ6ZjV2aTFXbVp4MHBwTw?oc=5\" target=\"_blank\">Bangladesh's gross forex reserves rise to $36.86bn</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">daily-sun.com</font>",
+    "published": "Mon, 10 Aug 2026 07:15:41 +0600",
+    "source": "https://news.google.com/rss/search?q=Bangladesh+DSE+OR+CSE+OR+%22stock+market%22+OR+shares+OR+banking+OR+taka+OR+%22foreign+exchange%22+OR+forex+when:7d&hl=en-BD&gl=BD&ceid=BD:en"
+  },
+  {
+    "id": "CBMijAFBVV95cUxQZUZCcFZHTmNYdjR5OEJ4WkJlWnZxSGp1eFhYeks5alV0NVlLMW1Gc3JlZXllTW5tOTFqMnZHOEZSUm4xUE5qWHdXX3J5akF3TlNFX3o4eHdfQnlXTWRmTU9ZbFlLLWdNejVWZ0tlTzRJNG9pTUNFVk5DQkQ5Q0xnYzBuTVN6N0VneW9PWQ",
+    "title": "BB moves to trace loan funds siphoned abroad - Bangladesh Post",
+    "link": "https://bangladeshpost.net/posts/bb-moves-to-trace-loan-funds-siphoned-abroad-172188",
+    "description": "<a href=\"https://news.google.com/rss/articles/CBMijAFBVV95cUxQZUZCcFZHTmNYdjR5OEJ4WkJlWnZxSGp1eFhYeks5alV0NVlLMW1Gc3JlZXllTW5tOTFqMnZHOEZSUm4xUE5qWHdXX3J5akF3TlNFX3o4eHdfQnlXTWRmTU9ZbFlLLWdNejVWZ0tlTzRJNG9pTUNFVk5DQkQ5Q0xnYzBuTVN6N0VneW9PWQ?oc=5\" target=\"_blank\">BB moves to trace loan funds siphoned abroad</a>&nbsp;&nbsp;<font color=\"#6f6f6f\">Bangladesh Post</font>",
+    "published": "Mon, 10 Aug 2026 07:15:41 +0600",
+    "source": "https://news.google.com/rss/search?q=Bangladesh+IMF+OR+%22World+Bank%22+OR+loan+OR+debt+OR+%22foreign+reserve%22+OR+dollar+OR+ADB+when:7d&hl=en-BD&gl=BD&ceid=BD:en"
   }
 ]
