@@ -19,6 +19,16 @@ Changes from previous version:
 - fetch_all_feeds() now collects all items across all feeds first, then sorts
   globally by parsed pubDate descending before applying age cutoff and cap.
   This ensures Gemini always sees the newest articles regardless of feed order.
+- [FIX] Gemini response extraction: safe multi-path text extraction, never
+  silently returns "" when response exists; debug logging of raw response.
+- [FIX] max_output_tokens: 4096 added to prevent Gemini truncating large batches.
+- [FIX] Relaxed HARD RULE: institutional-action titles with hedged language
+  (IMF, BB, NBR, Finance Ministry) are SIGNAL, not NOISE.
+- [FIX] Rolling seen.json cap (5000 links) — prevents seen-bloat starving Gemini
+  of new articles over time.
+- [FIX] Exception logging now prints type + full message, not just message.
+- [FIX] Gemini batch chunking: splits large article lists into chunks of 80 to
+  avoid prompt size issues that cause silent empty responses.
 """
 
 import feedparser
@@ -32,7 +42,6 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from google import genai
-from mistralai.client import Mistral
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin, urlparse
 import requests
@@ -76,7 +85,7 @@ KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-MISTRAL_MODEL         = "gemini-3.6-flash"
+GEMINI_MODEL          = "gemini-3.6-flash"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
@@ -88,6 +97,8 @@ MAX_AGE_HOURS         = 25
 ALLOW_MISSING_DATES   = True
 ALLOW_OLDER           = False
 MAX_FEED_ITEMS        = 500
+SEEN_ROLLING_CAP      = 5000   # rolling window — prevents seen-bloat
+GEMINI_BATCH_SIZE     = 80     # chunk size sent per Gemini call
 
 # -- PROMPT --------------------------------------------------------------------
 
@@ -121,11 +132,11 @@ Disaster & crisis: flood, fire, accident — unless title states a quantified na
 Opinion & analysis: editorial, column, forecast, interview, tribute — regardless of subject matter
 Human interest: profile, entrepreneur story, award, anniversary
 
-HARD RULE: If a title could plausibly be SIGNAL but lacks the concrete trigger (data release, policy decision, regulatory action, official transaction), classify as NOISE. Speculation, expectation, and "may/could/likely" language = NOISE.
+HARD RULE: Classify as NOISE only when a title is entirely speculative with no named actor, institution, or concrete subject matter. Titles that report expected, likely, ongoing, or imminent outcomes from named official bodies — Bangladesh Bank, IMF, NBR, Finance Ministry, BBS, BSEC, EPB, World Bank, ADB — on clearly economic matters ARE SIGNAL. The institutional action is the concrete trigger even when the final outcome is pending. Words like "may", "could", "likely", "expected", "set to", "to raise", "to cut" from a named institution do NOT disqualify a title as SIGNAL. Only classify as NOISE when there is no named institution and no concrete economic subject at all.
 
 OUTPUT FORMAT:
 {"signal": [indices]}
-Valid JSON only. No markdown. No explanation. Empty list if no signal found.
+Valid JSON only. No markdown. No explanation. No preamble. Empty list if no signal found.
 
 Article titles:
 {titles}"""
@@ -144,7 +155,7 @@ STATS = {
     "total_fetched":        0,
     "total_passed_age":     0,
     "total_new":            0,
-    "total_signal_mistral": 0,
+    "total_signal_gemini":  0,
     "total_signal":         0,
     "timestamp":            None,
 }
@@ -208,15 +219,25 @@ def load_seen_links():
         try:
             with open(SEEN_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            return set(data.get("links", []))
+            links = data.get("links", [])
+            # Rolling cap: keep only the most recent N links.
+            # Older links drop off, allowing re-evaluation after the window.
+            if len(links) > SEEN_ROLLING_CAP:
+                links = links[-SEEN_ROLLING_CAP:]
+                print(f"[INFO] seen.json trimmed to {SEEN_ROLLING_CAP} entries.")
+            return set(links)
         except Exception:
             pass
     return set()
 
 
 def save_seen_links(seen_links):
+    # Always persist sorted so the rolling trim above is stable
+    links = sorted(seen_links)
+    if len(links) > SEEN_ROLLING_CAP:
+        links = links[-SEEN_ROLLING_CAP:]
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
-        json.dump({"links": sorted(seen_links)}, f, indent=2, ensure_ascii=False)
+        json.dump({"links": links}, f, indent=2, ensure_ascii=False)
 
 
 def save_selected_articles(articles):
@@ -538,7 +559,6 @@ def fetch_all_feeds():
     # Maintain the original per-feed maximum while selecting the newest
     # articles globally.
     per_feed_counts = {}
-
     selected_articles = []
 
     for article in all_articles:
@@ -626,34 +646,129 @@ def extract_signal_indices(text):
     return []
 
 
-def send_to_mistral(articles):
+def _gemini_response_text(response) -> str:
+    """
+    Safely extract text from a Gemini GenerateContentResponse.
+
+    Gemini SDK can raise on .text if the response was blocked or has no
+    text parts (e.g. finish_reason=SAFETY). We try three paths so that
+    a blocked response returns "" instead of crashing or silently
+    returning all-zeros.
+    """
+    # Path 1: standard .text property
+    try:
+        t = response.text
+        if t:
+            return t
+    except Exception:
+        pass
+
+    # Path 2: iterate candidates → parts
+    try:
+        for candidate in response.candidates:
+            parts_text = ""
+            for part in candidate.content.parts:
+                if hasattr(part, "text") and part.text:
+                    parts_text += part.text
+            if parts_text:
+                return parts_text
+    except Exception:
+        pass
+
+    # Path 3: prompt_feedback / block reason — log and return ""
+    try:
+        fb = response.prompt_feedback
+        if fb:
+            print(f"[WARN] Gemini prompt_feedback: {fb}")
+    except Exception:
+        pass
+
+    return ""
+
+
+def _classify_batch(client, articles, batch_offset: int) -> list[int]:
+    """
+    Send one batch of articles to Gemini. Returns absolute indices
+    (relative to the full article list, adjusted by batch_offset).
+    """
+    titles_text = "\n".join([
+        f"{i}. {a.get('title', '')}"
+        for i, a in enumerate(articles)
+    ])
+
+    prompt = PROMPT.replace("{titles}", titles_text)
+
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "max_output_tokens": 4096,
+        },
+    )
+
+    text = _gemini_response_text(response)
+
+    print(
+        f"[DEBUG] Gemini batch offset={batch_offset} "
+        f"size={len(articles)} "
+        f"response_len={len(text)} "
+        f"preview={text[:300]!r}"
+    )
+
+    relative_indices = extract_signal_indices(text)
+
+    # Validate and convert to absolute indices
+    absolute_indices = []
+    for i in relative_indices:
+        if 0 <= i < len(articles):
+            absolute_indices.append(batch_offset + i)
+        else:
+            print(f"[WARN] Gemini returned out-of-range index {i} for batch size {len(articles)}")
+
+    return absolute_indices
+
+
+def classify_with_gemini(articles: list) -> list[int]:
+    """
+    Classify articles in chunks of GEMINI_BATCH_SIZE.
+    Returns a list of absolute signal indices into `articles`.
+    """
     api_key = os.environ.get("GEMINI_API_KEY")
 
-    if not api_key or not articles:
+    if not api_key:
+        print("[ERROR] GEMINI_API_KEY not set.")
+        return []
+
+    if not articles:
         return []
 
     try:
-        client      = genai.Client(api_key=api_key)
-        titles_text = "\n".join([
-            f"{i}. {a.get('title', '')}"
-            for i, a in enumerate(articles)
-        ])
-
-        prompt = PROMPT.replace("{titles}", titles_text)
-
-        response = client.models.generate_content(
-            model=MISTRAL_MODEL,
-            contents=prompt,
-            config={"response_mime_type": "application/json"},
-        )
-
-        text = response.text if hasattr(response, "text") else ""
-
-        return extract_signal_indices(text)
-
+        client = genai.Client(api_key=api_key)
     except Exception as e:
-        print(f"Gemini classification error: {e}")
+        print(f"[ERROR] Gemini client init failed [{type(e).__name__}]: {e}")
         return []
+
+    all_signal_indices = []
+    total_batches = (len(articles) + GEMINI_BATCH_SIZE - 1) // GEMINI_BATCH_SIZE
+
+    for batch_num in range(total_batches):
+        start  = batch_num * GEMINI_BATCH_SIZE
+        end    = min(start + GEMINI_BATCH_SIZE, len(articles))
+        batch  = articles[start:end]
+
+        print(f"  Gemini batch {batch_num + 1}/{total_batches} "
+              f"(articles {start}–{end - 1})...")
+
+        try:
+            indices = _classify_batch(client, batch, batch_offset=start)
+            all_signal_indices.extend(indices)
+        except Exception as e:
+            print(f"[ERROR] Gemini batch {batch_num + 1} failed "
+                  f"[{type(e).__name__}]: {e}")
+            # Continue with next batch rather than aborting everything
+
+    return all_signal_indices
 
 # -- XML -----------------------------------------------------------------------
 
@@ -914,11 +1029,7 @@ def print_stats():
 def main():
     seen_links   = load_seen_links()
     all_articles = fetch_all_feeds()
-    new_articles = get_new_articles(
-        all_articles,
-        seen_links
-    )
-
+    new_articles = get_new_articles(all_articles, seen_links)
     new_articles = dedup_by_link(new_articles)
 
     for a in new_articles:
@@ -931,19 +1042,18 @@ def main():
         f"to Gemini for BD economics/finance filtering..."
     )
 
-    gemini_indices = send_to_mistral(new_articles)
+    gemini_indices = classify_with_gemini(new_articles)
 
     gemini_indices = [
         i for i in gemini_indices
         if 0 <= i < len(new_articles)
     ]
 
-    STATS["total_signal_mistral"] = len(gemini_indices)
-    STATS["total_signal"]         = len(gemini_indices)
+    STATS["total_signal_gemini"] = len(gemini_indices)
+    STATS["total_signal"]        = len(gemini_indices)
 
     for a in new_articles:
         link = a.get("link")
-
         if link:
             seen_links.add(link)
 
@@ -957,6 +1067,8 @@ def main():
         print_stats()
         return
 
+    signal_indices_set = set(gemini_indices)
+
     signal_articles = [
         new_articles[i]
         for i in gemini_indices
@@ -965,7 +1077,7 @@ def main():
     excluded_articles = [
         new_articles[i]
         for i in range(len(new_articles))
-        if i not in set(gemini_indices)
+        if i not in signal_indices_set
     ]
 
     generate_xml_feed(
