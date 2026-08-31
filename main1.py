@@ -78,7 +78,7 @@ KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-GEMINI_MODEL          = "gemini-3.6-flash"
+GEMINI_MODEL          = "gemini-2.5-flash"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
@@ -174,7 +174,6 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
                 decoded = result["decoded_url"]
                 if decoded.startswith("http"):
                     return decoded
-            # status=False usually means 429 or transient error
             if attempt < _retries - 1:
                 time.sleep(delay)
                 delay *= 2
@@ -185,31 +184,15 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
             else:
                 print(f"[WARN] gnews decode failed for {gnews_url}: {e}")
 
-    return gnews_url  # fall through: keep original URL, never drop the article
+    return gnews_url
 
 # -- XML SANITIZATION ----------------------------------------------------------
 
-# XML 1.0 forbids these control characters entirely (except \t \n \r)
 _CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 
 def _sanitize_xml_bytes(raw: str) -> str:
-    """
-    Two-pass sanitizer applied to raw XML text before ET.fromstring().
-
-    Pass 1 — strip control characters that XML 1.0 forbids (everything
-    except \\t, \\n, \\r).  These appear in some RSS feeds that embed raw
-    bytestrings from scraped pages.
-
-    Pass 2 — fix bare & that are not already part of a valid XML entity
-    reference (&amp; &lt; &gt; &quot; &apos; &#digits; &#xhex;).
-    This is the direct cause of "EntityRef: expecting ';'" parse errors
-    that arise from URLs like https://example.com?a=1&b=2 written into
-    plain text nodes without escaping.
-    """
-    # Pass 1: control chars
     raw = _CTRL_RE.sub("", raw)
-    # Pass 2: bare ampersands
     raw = re.sub(
         r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)',
         '&amp;',
@@ -219,13 +202,6 @@ def _sanitize_xml_bytes(raw: str) -> str:
 
 
 def _safe_text(value: str) -> str:
-    """
-    Escape a string for use as a plain XML text node value (not CDATA).
-    Converts & → &amp;, < → &lt;, > → &gt;.
-    Used for <link> and <guid> where CDATA is not conventionally used.
-    This prevents the pipeline from re-introducing the very corruption
-    that _sanitize_xml_bytes() was written to clean up.
-    """
     if not value:
         return value
     return _html_mod.escape(value, quote=False)
@@ -233,7 +209,6 @@ def _safe_text(value: str) -> str:
 # -- I/O -----------------------------------------------------------------------
 
 def load_seen_links():
-    """Return the set of already-processed article links from seen.json."""
     if Path(SEEN_FILE).exists():
         try:
             with open(SEEN_FILE, "r", encoding="utf-8") as f:
@@ -245,7 +220,6 @@ def load_seen_links():
 
 
 def save_seen_links(seen_links):
-    """Persist the full seen-links set to seen.json."""
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"links": sorted(seen_links)}, f, indent=2, ensure_ascii=False)
 
@@ -455,10 +429,7 @@ def fetch_all_feeds():
     bd_now     = datetime.now(BD_TZ)
     bd_now_str = bd_now.strftime("%a, %d %b %Y %H:%M:%S +0600")
 
-    # Collect raw items from every feed, keeping parsed dt for global sort.
-    # Per-feed capping is intentionally deferred until after the global sort
-    # so that a slow/old feed cannot crowd out fresher items from other feeds.
-    raw_items = []  # list of (dt, article_dict)
+    raw_items = []
 
     for url in FEED_URLS:
         feed       = fetch_feed(url)
@@ -485,7 +456,6 @@ def fetch_all_feeds():
 
             raw_link = normalize_link(e.get("link") or "")
 
-            # Resolve Google News redirect URLs → real article URLs
             if is_google_news_url(raw_link):
                 real_link = decode_google_news_url(raw_link)
             else:
@@ -501,7 +471,7 @@ def fetch_all_feeds():
                 "description": desc or "",
                 "published":   bd_now_str,
                 "source":      url,
-                "_dt":         dt,          # internal sort key; not written to XML
+                "_dt":         dt,
             }
             if inferred:
                 article["published_inferred"] = True
@@ -516,16 +486,11 @@ def fetch_all_feeds():
         STATS["total_passed_age"]           += passed
         raw_items.extend(feed_items)
 
-    # Sort all collected items newest-first so Gemini always sees the
-    # freshest articles regardless of feed order or per-feed item counts.
     raw_items.sort(key=lambda a: a["_dt"], reverse=True)
 
-    # Apply global cap after sort (MAX_FEED_ITEMS is the rolling output cap;
-    # use a generous pre-Gemini cap = MAX_ARTICLES_PER_FEED × feed count).
     pre_gemini_cap = MAX_ARTICLES_PER_FEED * len(FEED_URLS)
     all_articles   = raw_items[:pre_gemini_cap]
 
-    # Update per-feed capped counts now that we know the final slice
     included_sources: dict[str, int] = {}
     for a in all_articles:
         included_sources[a["source"]] = included_sources.get(a["source"], 0) + 1
@@ -536,7 +501,6 @@ def fetch_all_feeds():
 
 
 def get_new_articles(all_articles, seen_links):
-    """Return articles whose link has not been seen before."""
     new = []
     for a in all_articles:
         link = a.get("link")
@@ -546,7 +510,6 @@ def get_new_articles(all_articles, seen_links):
 
 
 def dedup_by_link(articles):
-    """Remove articles sharing an identical link; keep first occurrence."""
     seen    = set()
     deduped = []
     for a in articles:
@@ -583,7 +546,7 @@ def extract_signal_indices(text):
 
 
 def send_to_gemini(articles):
-    api_key = os.environ.get("GK")
+    api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key or not articles:
         return []
 
@@ -593,7 +556,6 @@ def send_to_gemini(articles):
 
         titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
 
-        # Use .replace() to avoid KeyError on literal braces in the prompt
         prompt = PROMPT.replace("{titles}", titles_text)
 
         response = model.generate_content(
@@ -621,32 +583,15 @@ def _fresh_channel(root, feed_title, feed_description):
 
 
 def _load_or_create(output_file, feed_title, feed_description):
-    """
-    Load an existing RSS file into an ElementTree, with two-stage recovery.
-
-    Stage 1 — parse the file as-is with ET.parse().  This is the fast path
-    and succeeds for any well-formed file.
-
-    Stage 2 — if Stage 1 raises ParseError, read the raw text, run it through
-    _sanitize_xml_bytes() (strips control chars, fixes bare &), and retry with
-    ET.fromstring().  This recovers all existing <item> elements even when the
-    file contains unescaped ampersands in URLs.
-
-    Fallback — if Stage 2 also fails, log the error and start a fresh feed.
-    This is the last resort; existing items cannot be recovered from a truly
-    broken file, but the pipeline continues without crashing.
-    """
     ET.register_namespace("media", MEDIA_NS)
 
     if Path(output_file).exists():
-        # ---- Stage 1: direct parse ----
         try:
             tree    = ET.parse(output_file)
             root    = tree.getroot()
             channel = root.find("channel")
             if channel is not None:
                 return tree, root, channel
-            # Root present but no channel node — graft one on
             channel = _fresh_channel(root, feed_title, feed_description)
             return tree, root, channel
 
@@ -654,9 +599,7 @@ def _load_or_create(output_file, feed_title, feed_description):
             print(f"[WARN] XML parse failed on first attempt ({output_file}): {e}")
             print("[INFO] Retrying with sanitized content…")
 
-        # ---- Stage 2: sanitize then parse ----
         try:
-            # errors="replace" prevents UnicodeDecodeError on stray non-UTF-8 bytes
             with open(output_file, "r", encoding="utf-8", errors="replace") as fh:
                 raw = fh.read()
 
@@ -670,7 +613,6 @@ def _load_or_create(output_file, feed_title, feed_description):
                 print(f"[INFO] Sanitization succeeded — recovered {recovered} existing item(s).")
                 return tree, root, channel
 
-            # Root parsed but no channel
             channel = _fresh_channel(root, feed_title, feed_description)
             return tree, root, channel
 
@@ -678,7 +620,6 @@ def _load_or_create(output_file, feed_title, feed_description):
             print(f"[WARN] XML still unparseable after sanitization ({output_file}): {e}")
             print("[WARN] Starting a fresh feed — existing items in this file cannot be recovered.")
 
-    # ---- Fallback: fresh feed ----
     root    = ET.Element("rss", {"version": "2.0"})
     tree    = ET.ElementTree(root)
     channel = _fresh_channel(root, feed_title, feed_description)
@@ -705,12 +646,9 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
         item = ET.SubElement(channel, "item")
 
-        # <title> and <description> via CDATA — safe as-is
         ET.SubElement(item, "title").text       = a.get("title", "") or ""
         ET.SubElement(item, "description").text = a.get("description", "") or ""
 
-        # <link> and <guid> are plain text nodes — MUST be escaped so that
-        # URLs containing & don't produce invalid XML (e.g. ?a=1&b=2 → &amp;)
         ET.SubElement(item, "link").text = _safe_text(link)
 
         guid_val     = a.get("id") or link
@@ -729,7 +667,6 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         existing_links.add(link)
         added += 1
 
-    # Trim oldest items when feed exceeds MAX_FEED_ITEMS
     all_items = channel.findall("item")
     overflow  = len(all_items) - MAX_FEED_ITEMS
     if overflow > 0:
@@ -784,10 +721,8 @@ def main():
     all_articles = fetch_all_feeds()
     new_articles = get_new_articles(all_articles, seen_links)
 
-    # Deduplicate by link within this batch before Gemini
     new_articles = dedup_by_link(new_articles)
 
-    # Strip internal sort key — not needed beyond this point
     for a in new_articles:
         a.pop("_dt", None)
 
@@ -800,8 +735,6 @@ def main():
     STATS["total_signal_gemini"] = len(gemini_indices)
     STATS["total_signal"]        = len(gemini_indices)
 
-    # Mark all fetched articles as seen regardless of signal/noise
-    # so they are never re-sent to the API on the next run
     for a in new_articles:
         link = a.get("link")
         if link:
