@@ -53,7 +53,7 @@ KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-MISTRAL_MODEL         = "mistral-large-latest"
+MISTRAL_MODEL         = "mistral-medium-latest"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
