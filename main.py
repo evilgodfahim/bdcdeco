@@ -2,30 +2,22 @@
 """
 BD Economics & Finance RSS Feed Processor
 
-Fetches all feeds, deduplicates by link, sends titles to Gemini.
-Gemini filters for broad Bangladesh economics and finance news only.
+Fetches all feeds, deduplicates by link, sends titles to Mistral.
+Mistral filters for broad Bangladesh economics and finance news only.
 Both Bangla and English titles are evaluated.
 
 Output:  econ_feed.xml
 Stats:   econ_stats.json
 
-Changes from previous version:
-- Two-stage XML recovery: parse as-is → sanitize → fresh (never silently loses items)
-- _sanitize_xml_bytes(): strips forbidden control chars + fixes bare & in URLs
-- _safe_text(): escapes & < > in plain text nodes (<link>, <guid>) on write
-- errors="replace" on file open guards against encoding corruption
-- googlenewsdecoder (PyPI) replaces hand-rolled base64 decoder; retry wrapper
-  handles 429s with exponential backoff.
-- fetch_all_feeds() now collects all items across all feeds first, then sorts
-  globally by parsed pubDate descending before applying age cutoff and cap.
-  This ensures Gemini always sees the newest articles regardless of feed order.
-- Switched classifier from Mistral to Gemini 2.5 Flash; prompt rewritten for
-  higher recall (defaults to inclusion on ambiguity).
+Changes:
+- Switched classification client to official `mistralai` SDK (`from mistralai import Mistral`).
+- Reads API key from the `MS` environment variable.
+- Preserves newest-first RSS item order and handles XML sanitization/deduplication.
 """
 
 import feedparser
 from googlenewsdecoder import new_decoderv1 as _gnews_decoderv1
-from mistralai.client import Mistral
+from mistralai import Mistral
 import html as _html_mod
 import json
 import os
@@ -68,7 +60,6 @@ FEED_URLS = [
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%AD+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
 ]
 
-# Google News feed URL prefix — used to identify which links need decoding
 _GNEWS_PREFIXES = (
     "https://news.google.com/rss/articles/",
     "https://news.google.com/read/",
@@ -78,7 +69,7 @@ KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-GEMINI_MODEL          = "mistral-medium-latest"
+MISTRAL_MODEL         = "mistral-medium-latest"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
@@ -139,14 +130,14 @@ ET.register_namespace("media", MEDIA_NS)
 BD_TZ = timezone(timedelta(hours=6))
 
 STATS = {
-    "per_feed":            {},
-    "per_method":          {"KL": 0, "DIRECT": 0},
-    "total_fetched":       0,
-    "total_passed_age":    0,
-    "total_new":           0,
-    "total_signal_gemini": 0,
-    "total_signal":        0,
-    "timestamp":           None,
+    "per_feed":             {},
+    "per_method":           {"KL": 0, "DIRECT": 0},
+    "total_fetched":        0,
+    "total_passed_age":     0,
+    "total_new":            0,
+    "total_signal_mistral": 0,
+    "total_signal":         0,
+    "timestamp":            None,
 }
 
 # -- GOOGLE NEWS URL DECODING --------------------------------------------------
@@ -156,13 +147,6 @@ def is_google_news_url(url: str) -> bool:
 
 
 def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
-    """
-    Decode a Google News redirect URL to the real article URL using the
-    `googlenewsdecoder` PyPI package (new_decoderv1).
-
-    Retries up to _retries times with exponential backoff on 429 / failure.
-    Returns the original gnews_url if all attempts fail so no article is lost.
-    """
     if not gnews_url or not is_google_news_url(gnews_url):
         return gnews_url
 
@@ -199,12 +183,6 @@ def _sanitize_xml_bytes(raw: str) -> str:
         raw,
     )
     return raw
-
-
-def _safe_text(value: str) -> str:
-    if not value:
-        return value
-    return _html_mod.escape(value, quote=False)
 
 # -- I/O -----------------------------------------------------------------------
 
@@ -488,8 +466,8 @@ def fetch_all_feeds():
 
     raw_items.sort(key=lambda a: a["_dt"], reverse=True)
 
-    pre_gemini_cap = MAX_ARTICLES_PER_FEED * len(FEED_URLS)
-    all_articles   = raw_items[:pre_gemini_cap]
+    pre_cap       = MAX_ARTICLES_PER_FEED * len(FEED_URLS)
+    all_articles  = raw_items[:pre_cap]
 
     included_sources: dict[str, int] = {}
     for a in all_articles:
@@ -545,28 +523,28 @@ def extract_signal_indices(text):
     return []
 
 
-def send_to_gemini(articles):
+def send_to_mistral(articles):
     api_key = os.environ.get("MS")
     if not api_key or not articles:
         return []
 
     try:
         client = Mistral(api_key=api_key)
-
         titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
         prompt = PROMPT.replace("{titles}", titles_text)
 
         response = client.chat.complete(
-            model=GEMINI_MODEL,
+            model=MISTRAL_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
+            temperature=0.1,
         )
 
         text = response.choices[0].message.content or ""
         return extract_signal_indices(text)
 
     except Exception as e:
-        print(f"Gemini classification error: {e}")
+        print(f"Mistral classification error: {e}")
         return []
 
 # -- XML -----------------------------------------------------------------------
@@ -576,6 +554,7 @@ def _fresh_channel(root, feed_title, feed_description):
     ET.SubElement(channel, "title").text       = feed_title
     ET.SubElement(channel, "link").text        = "https://evilgodfahim.github.io/"
     ET.SubElement(channel, "description").text = feed_description
+    ET.SubElement(channel, "lastBuildDate").text = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
     return channel
 
 
@@ -635,22 +614,28 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         if link_el is not None and link_el.text:
             existing_links.add(link_el.text.strip())
 
+    first_item_idx = None
+    for idx, child in enumerate(list(channel)):
+        if child.tag == "item":
+            first_item_idx = idx
+            break
+
     added = 0
     for a in articles:
         link = (a.get("link") or "").strip()
         if not link or link in existing_links:
             continue
 
-        item = ET.SubElement(channel, "item")
+        item = ET.Element("item")
 
         ET.SubElement(item, "title").text       = a.get("title", "") or ""
         ET.SubElement(item, "description").text = a.get("description", "") or ""
 
-        ET.SubElement(item, "link").text = _safe_text(link)
+        ET.SubElement(item, "link").text = link
 
         guid_val     = a.get("id") or link
         is_permalink = "true" if guid_val.startswith("http") else "false"
-        ET.SubElement(item, "guid", {"isPermaLink": is_permalink}).text = _safe_text(guid_val)
+        ET.SubElement(item, "guid", {"isPermaLink": is_permalink}).text = guid_val
 
         if a.get("published"):
             ET.SubElement(item, "pubDate").text = a["published"]
@@ -661,19 +646,26 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
             mime = a.get("thumbnail_type") or get_mime_for_url(thumb)
             ET.SubElement(item, "enclosure", {"url": thumb, "type": mime, "length": "0"})
 
+        if first_item_idx is None:
+            channel.append(item)
+        else:
+            channel.insert(first_item_idx + added, item)
+
         existing_links.add(link)
         added += 1
 
     all_items = channel.findall("item")
     overflow  = len(all_items) - MAX_FEED_ITEMS
     if overflow > 0:
-        for old_item in all_items[:overflow]:
+        for old_item in all_items[MAX_FEED_ITEMS:]:
             channel.remove(old_item)
 
     now_text   = datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S +0000")
     last_build = channel.find("lastBuildDate")
     if last_build is None:
-        ET.SubElement(channel, "lastBuildDate").text = now_text
+        lb = ET.Element("lastBuildDate")
+        lb.text = now_text
+        channel.insert(3, lb)
     else:
         last_build.text = now_text
 
@@ -697,11 +689,11 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
 def print_stats():
     print("\nFetch statistics:")
-    print(f"  Timestamp:       {STATS.get('timestamp')}")
-    print(f"  Total fetched:   {STATS['total_fetched']}")
-    print(f"  Passed age cut:  {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
-    print(f"  New (unseen):    {STATS['total_new']}")
-    print(f"  Signal (Gemini): {STATS['total_signal_gemini']}  -> {OUTPUT_XML}")
+    print(f"  Timestamp:        {STATS.get('timestamp')}")
+    print(f"  Total fetched:    {STATS['total_fetched']}")
+    print(f"  Passed age cut:   {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
+    print(f"  New (unseen):     {STATS['total_new']}")
+    print(f"  Signal (Mistral): {STATS['total_signal_mistral']}  -> {OUTPUT_XML}")
     print("  Per-method:")
     for method, cnt in STATS["per_method"].items():
         print(f"    {method}: {cnt}")
@@ -724,13 +716,13 @@ def main():
         a.pop("_dt", None)
 
     STATS["total_new"] = len(new_articles)
-    print(f"Sending {len(new_articles)} article(s) to Gemini for BD economics/finance filtering…")
+    print(f"Sending {len(new_articles)} article(s) to Mistral for BD economics/finance filtering…")
 
-    gemini_indices = send_to_gemini(new_articles)
-    gemini_indices = [i for i in gemini_indices if 0 <= i < len(new_articles)]
+    mistral_indices = send_to_mistral(new_articles)
+    mistral_indices = [i for i in mistral_indices if 0 <= i < len(new_articles)]
 
-    STATS["total_signal_gemini"] = len(gemini_indices)
-    STATS["total_signal"]        = len(gemini_indices)
+    STATS["total_signal_mistral"] = len(mistral_indices)
+    STATS["total_signal"]         = len(mistral_indices)
 
     for a in new_articles:
         link = a.get("link")
@@ -738,29 +730,27 @@ def main():
             seen_links.add(link)
     save_seen_links(seen_links)
 
-    if not gemini_indices:
-        print("Gemini returned no signal indices. Skipping XML writes.")
-        print_stats()
-        return
+    signal_articles   = [new_articles[i] for i in mistral_indices]
+    excluded_articles = [new_articles[i] for i in range(len(new_articles)) if i not in set(mistral_indices)]
 
-    signal_articles   = [new_articles[i] for i in gemini_indices]
-    excluded_articles = [new_articles[i] for i in range(len(new_articles)) if i not in set(gemini_indices)]
+    if signal_articles:
+        generate_xml_feed(
+            signal_articles,
+            output_file=OUTPUT_XML,
+            feed_title="BD Economics & Finance",
+            feed_description="AI-curated Bangladesh national economics and finance news",
+        )
+        save_selected_articles(signal_articles)
+    else:
+        print("Mistral returned no signal indices for main feed.")
 
-    generate_xml_feed(
-        signal_articles,
-        output_file=OUTPUT_XML,
-        feed_title="BD Economics & Finance",
-        feed_description="AI-curated Bangladesh national economics and finance news",
-    )
-
-    generate_xml_feed(
-        excluded_articles,
-        output_file=EXCLUDED_XML,
-        feed_title="Excluded (BD Economics Filter)",
-        feed_description="Articles excluded by BD economics and finance filter",
-    )
-
-    save_selected_articles(signal_articles)
+    if excluded_articles:
+        generate_xml_feed(
+            excluded_articles,
+            output_file=EXCLUDED_XML,
+            feed_title="Excluded (BD Economics Filter)",
+            feed_description="Articles excluded by BD economics and finance filter",
+        )
 
     STATS["timestamp"] = datetime.utcnow().isoformat()
     save_stats()
