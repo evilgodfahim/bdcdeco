@@ -3,3 +3,4 @@ googlenewsdecoder
 google-generativeai
 python-dateutil
 requests
+mistralai
