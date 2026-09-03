@@ -2,8 +2,8 @@
 """
 BD Economics & Finance RSS Feed Processor
 
-Fetches all feeds, deduplicates by link, sends titles to Mistral.
-Mistral filters for broad Bangladesh economics and finance news only.
+Fetches all feeds, deduplicates by link, sends titles to Gemini.
+Gemini filters for broad Bangladesh economics and finance news only.
 Both Bangla and English titles are evaluated.
 
 Output:  econ_feed.xml
@@ -14,9 +14,18 @@ Changes from previous version:
 - _sanitize_xml_bytes(): strips forbidden control chars + fixes bare & in URLs
 - _safe_text(): escapes & < > in plain text nodes (<link>, <guid>) on write
 - errors="replace" on file open guards against encoding corruption
+- googlenewsdecoder (PyPI) replaces hand-rolled base64 decoder; retry wrapper
+  handles 429s with exponential backoff.
+- fetch_all_feeds() now collects all items across all feeds first, then sorts
+  globally by parsed pubDate descending before applying age cutoff and cap.
+  This ensures Gemini always sees the newest articles regardless of feed order.
+- Switched classifier from Mistral to Gemini 2.5 Flash; prompt rewritten for
+  higher recall (defaults to inclusion on ambiguity).
 """
 
 import feedparser
+from googlenewsdecoder import new_decoderv1 as _gnews_decoderv1
+from mistralai import Mistral
 import html as _html_mod
 import json
 import os
@@ -25,7 +34,6 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import xml.etree.ElementTree as ET
-from mistralai.client import Mistral
 from email.utils import parsedate_to_datetime
 from urllib.parse import urljoin, urlparse
 import requests
@@ -47,13 +55,30 @@ FEED_URLS = [
     "https://evilgodfahim.github.io/bdl/final.xml",
     "https://evilgodfahim.github.io/bdlb/final.xml",
     "https://evilgodfahim.github.io/npc/output/merged.xml",
+    # Google News — English (BD edition)
+    "https://news.google.com/rss/search?q=Bangladesh+economy+OR+economic+OR+GDP+OR+inflation+OR+%22central+bank%22+OR+%22Bangladesh+Bank%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
+    "https://news.google.com/rss/search?q=Bangladesh+budget+OR+revenue+OR+NBR+OR+tax+OR+export+OR+import+OR+remittance+OR+%22trade+deficit%22+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
+    "https://news.google.com/rss/search?q=Bangladesh+DSE+OR+CSE+OR+%22stock+market%22+OR+shares+OR+banking+OR+taka+OR+%22foreign+exchange%22+OR+forex+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
+    "https://news.google.com/rss/search?q=Bangladesh+investment+OR+FDI+OR+garments+OR+RMG+OR+EPZ+OR+BIDA+OR+industry+OR+factory+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
+    "https://news.google.com/rss/search?q=Bangladesh+IMF+OR+%22World+Bank%22+OR+loan+OR+debt+OR+%22foreign+reserve%22+OR+dollar+OR+ADB+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
+    # Google News — Bangla (BD edition)
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%B8%E0%A7%8D%E0%A6%AB%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%B6%E0%A7%87%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%B0%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A6%BE%E0%A6%B0+OR+%E0%A6%A1%E0%A6%BF%E0%A6%8F%E0%A6%B8%E0%A6%87+OR+%E0%A6%9F%E0%A6%BE%E0%A6%95%E0%A6%BE+OR+%E0%A6%A1%E0%A6%B2%E0%A6%BE%E0%A6%B0+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%AE%E0%A7%81%E0%A6%A6%E0%A7%8D%E0%A6%B0%E0%A6%BE+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A6%BC%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%AD+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
 ]
+
+# Google News feed URL prefix — used to identify which links need decoding
+_GNEWS_PREFIXES = (
+    "https://news.google.com/rss/articles/",
+    "https://news.google.com/read/",
+)
 
 KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-MISTRAL_MODEL         = "mistral-medium-latest"
+GEMINI_MODEL          = "mistral-medium-latest"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
@@ -68,43 +93,39 @@ MAX_FEED_ITEMS        = 500
 
 # -- PROMPT --------------------------------------------------------------------
 
-PROMPT = """ROLE: Binary news classifier. Input is a numbered list of article titles in English or Bengali. Output is a JSON object with one key: "signal", containing a list of 0-based indices of SIGNAL articles.
+PROMPT = """ROLE: News classifier for Bangladesh economics and finance. Input is a numbered list of article titles in English or Bengali. Output must be valid JSON only — no markdown, no explanation.
 
-SIGNAL DEFINITION:
-An article is SIGNAL if and only if it reports a concrete, verifiable, national-scale economic or financial development concerning Bangladesh. "Concrete" means a data release, policy decision, regulatory action, or official transaction. "National-scale" means it affects Bangladesh's macroeconomy, a major sector in aggregate, or Bangladesh's position in international finance.
+TASK: Return the 0-based indices of every SIGNAL article.
 
-SIGNAL DOMAINS:
+SIGNAL — include if the article relates to ANY of the following concerning Bangladesh:
+1. Bangladesh Bank, monetary policy, policy rate, repo, CRR/SLR, money supply, forex intervention
+2. Taka exchange rate, forex reserves, currency movement, dollar-taka
+3. Remittances — inflow data, trends, policy
+4. Inflation, CPI, PPI, cost of living, price levels
+5. Exports, imports, trade balance, current account, BoP, RMG/garments sector
+6. Tariffs, customs, trade agreements, NBR tax/VAT policy
+7. National budget, supplementary budget, government revenue, spending, fiscal deficit
+8. Public debt, T-bills, bonds, government borrowing, sovereign debt
+9. IMF, World Bank, ADB, AIIB, IDB — any programme, loan, review, or disbursement involving Bangladesh
+10. FDI, investment climate, BIDA, EPZ, BEPZA, industrial zones
+11. GDP, GNI, economic growth, national income, per capita income
+12. DSE, CSE, stock market, capital markets, BSEC regulation
+13. Banking sector — NPLs, credit growth, BB prudential rules, bank mergers, licences
+14. Energy prices, fuel price changes, electricity/gas tariff adjustments
+15. Analysis, forecasts, expert commentary, or opinion pieces about Bangladesh's economy or finance
+16. Any significant economic or financial development at national scale in Bangladesh
 
-Monetary policy — BB policy rate, repo/reverse repo, CRR/SLR, money supply, forex intervention
-Exchange rate & reserves — taka rate movement, forex reserve level or trend, BB forex operations
-Remittance — aggregate inflow data (monthly/quarterly/annual), BB remittance policy
-Inflation — BBS CPI/PPI release, official nationwide inflation figure
-Export & import — EPB/BB aggregate trade data, trade balance, current account, BoP figures
-Tariff & trade policy — NBR customs/duty changes, trade agreement with national scope
-Budget & fiscal policy — national budget, supplementary budget, Finance Minister fiscal statement, NBR tax/VAT structural change, government revenue or expenditure data, fiscal deficit
-Public debt — government borrowing programme, T-bill/bond auction results, external debt stock, sovereign bond issuance, debt servicing data
-International finance — IMF/World Bank/ADB/IDB/AIIB programme approval, disbursement, or staff-level agreement for Bangladesh; sovereign credit rating change. Includes titles where agreement or progress is strongly implied ("reaches agreement", "concludes review", "unlocks tranche")
-FDI — BB/BIDA aggregate FDI inflow or outflow data, national FDI policy change
-GDP & macro — BBS GDP/GNI release, national accounts data, per capita income figures
-Capital markets — DSE/CSE broad index significant move, BSEC market-wide regulatory decision, circuit breaker, national securities regulation; sovereign or aggregate bond market development
-Banking sector systemic — sector-wide NPL data, overall private credit growth, BB prudential regulation affecting all banks, bank merger/nationalisation/licence cancellation, scheduled bank insolvency
-Energy & utilities — nationwide fuel price change, electricity or gas tariff adjustment by government or regulator
+NOISE — exclude ONLY if the article is clearly about:
+- Sports, entertainment, celebrity, lifestyle with no economic angle
+- Individual crime or court cases with no stated economic significance
+- Natural disasters or accidents with no stated economic impact
+- Purely foreign news with no Bangladesh connection
+- A single small company's routine business (earnings, product launch, branch opening) with no stated sector-wide or national significance
 
-NOISE — regardless of framing:
-Single entity: one bank's earnings, product, branch, CSR, or deposit scheme; one company's revenue, IPO, or investment; one factory's output
-Sub-national: city, district, or facility-level event with no stated national aggregate impact
-Politics & governance: elections, parliament, cabinet, court, law enforcement — unless the title itself states a direct, named fiscal or monetary consequence
-Disaster & crisis: flood, fire, accident — unless title states a quantified national economic impact
-Opinion & analysis: editorial, column, forecast, interview, tribute — regardless of subject matter
-Human interest: profile, entrepreneur story, award, anniversary, lifestyle
+DEFAULT RULE: When in doubt, classify as SIGNAL. Prefer inclusion over exclusion. A borderline article about Bangladesh's economic landscape should always be SIGNAL.
 
-HARD RULE: If a title could plausibly be SIGNAL but lacks the concrete trigger (data release, policy decision, regulatory action, official transaction), classify as NOISE. Speculation, expectation, and "may/could/likely" language = NOISE.
-
-DEDUPLICATION RULE: If multiple titles cover the exact same news event, data release, or policy decision, treat them as duplicates. Only include the index of the first or most comprehensive occurrence in your "signal" list. Do not output multiple indices for the same underlying story.
-
-OUTPUT FORMAT:
-{"signal": [indices]}
-Valid JSON only. No markdown. No explanation. Empty list if no signal found.
+OUTPUT FORMAT — respond with ONLY this JSON object, nothing else:
+{"signal": [list of 0-based indices]}
 
 Article titles:
 {titles}"""
@@ -118,39 +139,60 @@ ET.register_namespace("media", MEDIA_NS)
 BD_TZ = timezone(timedelta(hours=6))
 
 STATS = {
-    "per_feed":             {},
-    "per_method":           {"KL": 0, "DIRECT": 0},
-    "total_fetched":        0,
-    "total_passed_age":     0,
-    "total_new":            0,
-    "total_signal_mistral": 0,
-    "total_signal":         0,
-    "timestamp":            None,
+    "per_feed":            {},
+    "per_method":          {"KL": 0, "DIRECT": 0},
+    "total_fetched":       0,
+    "total_passed_age":    0,
+    "total_new":           0,
+    "total_signal_gemini": 0,
+    "total_signal":        0,
+    "timestamp":           None,
 }
+
+# -- GOOGLE NEWS URL DECODING --------------------------------------------------
+
+def is_google_news_url(url: str) -> bool:
+    return any(url.startswith(p) for p in _GNEWS_PREFIXES)
+
+
+def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
+    """
+    Decode a Google News redirect URL to the real article URL using the
+    `googlenewsdecoder` PyPI package (new_decoderv1).
+
+    Retries up to _retries times with exponential backoff on 429 / failure.
+    Returns the original gnews_url if all attempts fail so no article is lost.
+    """
+    if not gnews_url or not is_google_news_url(gnews_url):
+        return gnews_url
+
+    delay = 1.0
+    for attempt in range(_retries):
+        try:
+            result = _gnews_decoderv1(gnews_url, interval=None)
+            if result.get("status") and result.get("decoded_url"):
+                decoded = result["decoded_url"]
+                if decoded.startswith("http"):
+                    return decoded
+            if attempt < _retries - 1:
+                time.sleep(delay)
+                delay *= 2
+        except Exception as e:
+            if attempt < _retries - 1:
+                time.sleep(delay)
+                delay *= 2
+            else:
+                print(f"[WARN] gnews decode failed for {gnews_url}: {e}")
+
+    return gnews_url
 
 # -- XML SANITIZATION ----------------------------------------------------------
 
-# XML 1.0 forbids these control characters entirely (except \t \n \r)
 _CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 
 def _sanitize_xml_bytes(raw: str) -> str:
-    """
-    Two-pass sanitizer applied to raw XML text before ET.fromstring().
-
-    Pass 1 — strip control characters that XML 1.0 forbids (everything
-    except \\t, \\n, \\r).  These appear in some RSS feeds that embed raw
-    bytestrings from scraped pages.
-
-    Pass 2 — fix bare & that are not already part of a valid XML entity
-    reference (&amp; &lt; &gt; &quot; &apos; &#digits; &#xhex;).
-    This is the direct cause of "EntityRef: expecting ';'" parse errors
-    that arise from URLs like https://example.com?a=1&b=2 written into
-    plain text nodes without escaping.
-    """
-    # Pass 1: control chars
     raw = _CTRL_RE.sub("", raw)
-    # Pass 2: bare ampersands
     raw = re.sub(
         r'&(?!(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);)',
         '&amp;',
@@ -160,13 +202,6 @@ def _sanitize_xml_bytes(raw: str) -> str:
 
 
 def _safe_text(value: str) -> str:
-    """
-    Escape a string for use as a plain XML text node value (not CDATA).
-    Converts & → &amp;, < → &lt;, > → &gt;.
-    Used for <link> and <guid> where CDATA is not conventionally used.
-    This prevents the pipeline from re-introducing the very corruption
-    that _sanitize_xml_bytes() was written to clean up.
-    """
     if not value:
         return value
     return _html_mod.escape(value, quote=False)
@@ -174,7 +209,6 @@ def _safe_text(value: str) -> str:
 # -- I/O -----------------------------------------------------------------------
 
 def load_seen_links():
-    """Return the set of already-processed article links from seen.json."""
     if Path(SEEN_FILE).exists():
         try:
             with open(SEEN_FILE, "r", encoding="utf-8") as f:
@@ -186,7 +220,6 @@ def load_seen_links():
 
 
 def save_seen_links(seen_links):
-    """Persist the full seen-links set to seen.json."""
     with open(SEEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"links": sorted(seen_links)}, f, indent=2, ensure_ascii=False)
 
@@ -391,11 +424,12 @@ def fetch_feed(url):
 
 
 def fetch_all_feeds():
-    now          = datetime.now(timezone.utc)
-    cutoff       = now - timedelta(hours=MAX_AGE_HOURS)
-    bd_now       = datetime.now(BD_TZ)
-    bd_now_str   = bd_now.strftime("%a, %d %b %Y %H:%M:%S +0600")
-    all_articles = []
+    now        = datetime.now(timezone.utc)
+    cutoff     = now - timedelta(hours=MAX_AGE_HOURS)
+    bd_now     = datetime.now(BD_TZ)
+    bd_now_str = bd_now.strftime("%a, %d %b %Y %H:%M:%S +0600")
+
+    raw_items = []
 
     for url in FEED_URLS:
         feed       = fetch_feed(url)
@@ -420,17 +454,24 @@ def fetch_all_feeds():
                 if isinstance(det, dict):
                     desc = det.get("value", "") or ""
 
-            link       = normalize_link(e.get("link") or "")
-            article_id = e.get("id") or link or ""
-            image_url  = extract_image_url(e, base_link=link)
+            raw_link = normalize_link(e.get("link") or "")
+
+            if is_google_news_url(raw_link):
+                real_link = decode_google_news_url(raw_link)
+            else:
+                real_link = raw_link
+
+            article_id = e.get("id") or real_link or raw_link or ""
+            image_url  = extract_image_url(e, base_link=real_link)
 
             article = {
                 "id":          str(article_id),
                 "title":       e.get("title", "") or "",
-                "link":        link,
+                "link":        real_link,
                 "description": desc or "",
                 "published":   bd_now_str,
                 "source":      url,
+                "_dt":         dt,
             }
             if inferred:
                 article["published_inferred"] = True
@@ -441,17 +482,25 @@ def fetch_all_feeds():
             feed_items.append(article)
 
         passed = len(feed_items)
-        capped = min(passed, MAX_ARTICLES_PER_FEED)
         STATS["per_feed"][url]["passed_age"] = passed
-        STATS["per_feed"][url]["capped"]     = capped
         STATS["total_passed_age"]           += passed
-        all_articles.extend(feed_items[:MAX_ARTICLES_PER_FEED])
+        raw_items.extend(feed_items)
+
+    raw_items.sort(key=lambda a: a["_dt"], reverse=True)
+
+    pre_gemini_cap = MAX_ARTICLES_PER_FEED * len(FEED_URLS)
+    all_articles   = raw_items[:pre_gemini_cap]
+
+    included_sources: dict[str, int] = {}
+    for a in all_articles:
+        included_sources[a["source"]] = included_sources.get(a["source"], 0) + 1
+    for url in FEED_URLS:
+        STATS["per_feed"][url]["capped"] = included_sources.get(url, 0)
 
     return all_articles
 
 
 def get_new_articles(all_articles, seen_links):
-    """Return articles whose link has not been seen before."""
     new = []
     for a in all_articles:
         link = a.get("link")
@@ -461,7 +510,6 @@ def get_new_articles(all_articles, seen_links):
 
 
 def dedup_by_link(articles):
-    """Remove articles sharing an identical link; keep first occurrence."""
     seen    = set()
     deduped = []
     for a in articles:
@@ -497,21 +545,19 @@ def extract_signal_indices(text):
     return []
 
 
-def send_to_mistral(articles):
+def send_to_gemini(articles):
     api_key = os.environ.get("MS")
     if not api_key or not articles:
         return []
 
     try:
-        client      = Mistral(api_key=api_key)
-        titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
+        client = Mistral(api_key=api_key)
 
-        # FIX: use .replace() instead of .format() to avoid KeyError on the
-        # literal braces in the prompt (e.g. {"signal": [indices]})
+        titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
         prompt = PROMPT.replace("{titles}", titles_text)
 
         response = client.chat.complete(
-            model=MISTRAL_MODEL,
+            model=GEMINI_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
         )
@@ -520,7 +566,7 @@ def send_to_mistral(articles):
         return extract_signal_indices(text)
 
     except Exception as e:
-        print(f"Mistral classification error: {e}")
+        print(f"Gemini classification error: {e}")
         return []
 
 # -- XML -----------------------------------------------------------------------
@@ -534,32 +580,15 @@ def _fresh_channel(root, feed_title, feed_description):
 
 
 def _load_or_create(output_file, feed_title, feed_description):
-    """
-    Load an existing RSS file into an ElementTree, with two-stage recovery.
-
-    Stage 1 — parse the file as-is with ET.parse().  This is the fast path
-    and succeeds for any well-formed file.
-
-    Stage 2 — if Stage 1 raises ParseError, read the raw text, run it through
-    _sanitize_xml_bytes() (strips control chars, fixes bare &), and retry with
-    ET.fromstring().  This recovers all existing <item> elements even when the
-    file contains unescaped ampersands in URLs.
-
-    Fallback — if Stage 2 also fails, log the error and start a fresh feed.
-    This is the last resort; existing items cannot be recovered from a truly
-    broken file, but the pipeline continues without crashing.
-    """
     ET.register_namespace("media", MEDIA_NS)
 
     if Path(output_file).exists():
-        # ---- Stage 1: direct parse ----
         try:
             tree    = ET.parse(output_file)
             root    = tree.getroot()
             channel = root.find("channel")
             if channel is not None:
                 return tree, root, channel
-            # Root present but no channel node — graft one on
             channel = _fresh_channel(root, feed_title, feed_description)
             return tree, root, channel
 
@@ -567,9 +596,7 @@ def _load_or_create(output_file, feed_title, feed_description):
             print(f"[WARN] XML parse failed on first attempt ({output_file}): {e}")
             print("[INFO] Retrying with sanitized content…")
 
-        # ---- Stage 2: sanitize then parse ----
         try:
-            # errors="replace" prevents UnicodeDecodeError on stray non-UTF-8 bytes
             with open(output_file, "r", encoding="utf-8", errors="replace") as fh:
                 raw = fh.read()
 
@@ -583,7 +610,6 @@ def _load_or_create(output_file, feed_title, feed_description):
                 print(f"[INFO] Sanitization succeeded — recovered {recovered} existing item(s).")
                 return tree, root, channel
 
-            # Root parsed but no channel
             channel = _fresh_channel(root, feed_title, feed_description)
             return tree, root, channel
 
@@ -591,7 +617,6 @@ def _load_or_create(output_file, feed_title, feed_description):
             print(f"[WARN] XML still unparseable after sanitization ({output_file}): {e}")
             print("[WARN] Starting a fresh feed — existing items in this file cannot be recovered.")
 
-    # ---- Fallback: fresh feed ----
     root    = ET.Element("rss", {"version": "2.0"})
     tree    = ET.ElementTree(root)
     channel = _fresh_channel(root, feed_title, feed_description)
@@ -618,12 +643,9 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
         item = ET.SubElement(channel, "item")
 
-        # <title> and <description> via CDATA — safe as-is
         ET.SubElement(item, "title").text       = a.get("title", "") or ""
         ET.SubElement(item, "description").text = a.get("description", "") or ""
 
-        # <link> and <guid> are plain text nodes — MUST be escaped so that
-        # URLs containing & don't produce invalid XML (e.g. ?a=1&b=2 → &amp;)
         ET.SubElement(item, "link").text = _safe_text(link)
 
         guid_val     = a.get("id") or link
@@ -642,7 +664,6 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
         existing_links.add(link)
         added += 1
 
-    # Trim oldest items when feed exceeds MAX_FEED_ITEMS
     all_items = channel.findall("item")
     overflow  = len(all_items) - MAX_FEED_ITEMS
     if overflow > 0:
@@ -676,11 +697,11 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
 def print_stats():
     print("\nFetch statistics:")
-    print(f"  Timestamp:        {STATS.get('timestamp')}")
-    print(f"  Total fetched:    {STATS['total_fetched']}")
-    print(f"  Passed age cut:   {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
-    print(f"  New (unseen):     {STATS['total_new']}")
-    print(f"  Signal (Mistral): {STATS['total_signal_mistral']}  -> {OUTPUT_XML}")
+    print(f"  Timestamp:       {STATS.get('timestamp')}")
+    print(f"  Total fetched:   {STATS['total_fetched']}")
+    print(f"  Passed age cut:  {STATS['total_passed_age']}  (within {MAX_AGE_HOURS}h)")
+    print(f"  New (unseen):    {STATS['total_new']}")
+    print(f"  Signal (Gemini): {STATS['total_signal_gemini']}  -> {OUTPUT_XML}")
     print("  Per-method:")
     for method, cnt in STATS["per_method"].items():
         print(f"    {method}: {cnt}")
@@ -697,33 +718,33 @@ def main():
     all_articles = fetch_all_feeds()
     new_articles = get_new_articles(all_articles, seen_links)
 
-    # Deduplicate by link within this batch before Mistral
     new_articles = dedup_by_link(new_articles)
 
+    for a in new_articles:
+        a.pop("_dt", None)
+
     STATS["total_new"] = len(new_articles)
-    print(f"Sending {len(new_articles)} article(s) to Mistral for BD economics/finance filtering…")
+    print(f"Sending {len(new_articles)} article(s) to Gemini for BD economics/finance filtering…")
 
-    mistral_indices = send_to_mistral(new_articles)
-    mistral_indices = [i for i in mistral_indices if 0 <= i < len(new_articles)]
+    gemini_indices = send_to_gemini(new_articles)
+    gemini_indices = [i for i in gemini_indices if 0 <= i < len(new_articles)]
 
-    STATS["total_signal_mistral"] = len(mistral_indices)
-    STATS["total_signal"]         = len(mistral_indices)
+    STATS["total_signal_gemini"] = len(gemini_indices)
+    STATS["total_signal"]        = len(gemini_indices)
 
-    # Mark all fetched articles as seen regardless of signal/noise
-    # so they are never re-sent to the API on the next run
     for a in new_articles:
         link = a.get("link")
         if link:
             seen_links.add(link)
     save_seen_links(seen_links)
 
-    if not mistral_indices:
-        print("Mistral returned no signal indices. Skipping XML writes.")
+    if not gemini_indices:
+        print("Gemini returned no signal indices. Skipping XML writes.")
         print_stats()
         return
 
-    signal_articles   = [new_articles[i] for i in mistral_indices]
-    excluded_articles = [new_articles[i] for i in range(len(new_articles)) if i not in set(mistral_indices)]
+    signal_articles   = [new_articles[i] for i in gemini_indices]
+    excluded_articles = [new_articles[i] for i in range(len(new_articles)) if i not in set(gemini_indices)]
 
     generate_xml_feed(
         signal_articles,
