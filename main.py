@@ -25,7 +25,7 @@ Changes from previous version:
 
 import feedparser
 from googlenewsdecoder import new_decoderv1 as _gnews_decoderv1
-from mistralai import Mistral
+from mistralai.client import Mistral
 import html as _html_mod
 import json
 import os
