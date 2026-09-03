@@ -100,6 +100,8 @@ Human interest: profile, entrepreneur story, award, anniversary, lifestyle
 
 HARD RULE: If a title could plausibly be SIGNAL but lacks the concrete trigger (data release, policy decision, regulatory action, official transaction), classify as NOISE. Speculation, expectation, and "may/could/likely" language = NOISE.
 
+DEDUPLICATION RULE: If multiple titles cover the exact same news event, data release, or policy decision, treat them as duplicates. Only include the index of the first or most comprehensive occurrence in your "signal" list. Do not output multiple indices for the same underlying story.
+
 OUTPUT FORMAT:
 {"signal": [indices]}
 Valid JSON only. No markdown. No explanation. Empty list if no signal found.
