@@ -8,11 +8,6 @@ Both Bangla and English titles are evaluated.
 
 Output:  econ_feed.xml
 Stats:   econ_stats.json
-
-Changes:
-- Switched classification client to official `mistralai` SDK (`from mistralai import Mistral`).
-- Reads API key from the `MS` environment variable.
-- Preserves newest-first RSS item order and handles XML sanitization/deduplication.
 """
 
 import feedparser
@@ -54,10 +49,10 @@ FEED_URLS = [
     "https://news.google.com/rss/search?q=Bangladesh+investment+OR+FDI+OR+garments+OR+RMG+OR+EPZ+OR+BIDA+OR+industry+OR+factory+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
     "https://news.google.com/rss/search?q=Bangladesh+IMF+OR+%22World+Bank%22+OR+loan+OR+debt+OR+%22foreign+reserve%22+OR+dollar+OR+ADB+when:7d&hl=en-BD&gl=BD&ceid=BD:en",
     # Google News — Bangla (BD edition)
-    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%B8%E0%A7%8D%E0%A6%AB%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%BB%E0%A6%B5%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%B6%E0%A7%87%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%B0%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A6%BE%E0%A6%B0+OR+%E0%A6%A1%E0%A6%BF%E0%A6%8F%E0%A6%B8%E0%A6%87+OR+%E0%A6%9F%E0%A6%BE%E0%A6%95%E0%A6%BE+OR+%E0%A6%A1%E0%A6%B2%E0%A6%BE%E0%A6%B0+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%AE%E0%A7%81%E0%A6%A6%E0%A7%8D%E0%A6%B0%E0%A6%BE+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
-    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A6%BC%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
-    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%AD+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A6%BC%E0%A6%BE%E0%A6%B8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%B2+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
 ]
 
 _GNEWS_PREFIXES = (
@@ -84,39 +79,73 @@ MAX_FEED_ITEMS        = 500
 
 # -- PROMPT --------------------------------------------------------------------
 
-PROMPT = """ROLE: News classifier for Bangladesh economics and finance. Input is a numbered list of article titles in English or Bengali. Output must be valid JSON only — no markdown, no explanation.
+PROMPT = """ROLE: Strictly classify news headlines in English or Bengali for Bangladesh Macroeconomics and Finance.
+Output must be valid JSON only — no markdown formatting, no explanation.
 
-TASK: Return the 0-based indices of every SIGNAL article.
+TASK: Identify 0-based indices of SIGNAL articles while strictly excluding NOISE and DEDUPLICATING near-identical coverage.
 
-SIGNAL — include if the article relates to ANY of the following concerning Bangladesh:
-1. Bangladesh Bank, monetary policy, policy rate, repo, CRR/SLR, money supply, forex intervention
-2. Taka exchange rate, forex reserves, currency movement, dollar-taka
-3. Remittances — inflow data, trends, policy
-4. Inflation, CPI, PPI, cost of living, price levels
-5. Exports, imports, trade balance, current account, BoP, RMG/garments sector
-6. Tariffs, customs, trade agreements, NBR tax/VAT policy
-7. National budget, supplementary budget, government revenue, spending, fiscal deficit
-8. Public debt, T-bills, bonds, government borrowing, sovereign debt
-9. IMF, World Bank, ADB, AIIB, IDB — any programme, loan, review, or disbursement involving Bangladesh
-10. FDI, investment climate, BIDA, EPZ, BEPZA, industrial zones
-11. GDP, GNI, economic growth, national income, per capita income
-12. DSE, CSE, stock market, capital markets, BSEC regulation
-13. Banking sector — NPLs, credit growth, BB prudential rules, bank mergers, licences
-14. Energy prices, fuel price changes, electricity/gas tariff adjustments
-15. Analysis, forecasts, expert commentary, or opinion pieces about Bangladesh's economy or finance
-16. Any significant economic or financial development at national scale in Bangladesh
+GUIDELINES FOR SIGNAL:
+- Sector-wide or macro significance to Bangladesh's economy/finance:
+  1. Central Bank & Monetary Policy: Bangladesh Bank interest rates, policy rate, repo, CRR/SLR, money supply, banking rules.
+  2. Currency & Reserves: Taka-dollar exchange rates, foreign exchange reserves, forex market interventions.
+  3. External Sector: Remittances, export-import performance, RMG/garments trade, trade deficit, balance of payments.
+  4. Fiscal Policy & Taxes: National budget, NBR revenue collection, customs duties, tariffs, VAT, public debt, government borrowing/bonds.
+  5. Macro Indicators: GDP growth, CPI inflation, cost of living index, foreign debt, IMF/World Bank/ADB loans or reviews.
+  6. Financial & Capital Markets: DSE/CSE stock indices, BSEC capital market regulations, systemic banking sector health (NPLs, liquidity).
+  7. Sector-level Infrastructure & Energy: Fuel/gas/electricity tariff adjustments, major national industrial investment policy (BIDA/BEPZA/EPZ).
+  8. Expert Macro Analysis: Comprehensive economic outlooks, trade policy analysis, or national economic forecasts.
 
-NOISE — exclude ONLY if the article is clearly about:
-- Sports, entertainment, celebrity, lifestyle with no economic angle
-- Individual crime or court cases with no stated economic significance
-- Natural disasters or accidents with no stated economic impact
-- Purely foreign news with no Bangladesh connection
-- A single small company's routine business (earnings, product launch, branch opening) with no stated sector-wide or national significance
+GUIDELINES FOR NOISE (STRICT EXCLUSIONS):
+- Micro-level business routine: Individual company product launches, single branch openings, private business award ceremonies, or minor corporate promotions.
+- Localized retail price shifts: Everyday price shifts at local markets without direct government tariff/policy intervention.
+- Non-economic topics: Sports, entertainment, crime, political speeches/arguments, local court cases, or accidents without structural economic implications.
+- Purely global news with no direct operational or fiscal impact on Bangladesh.
 
-DEFAULT RULE: When in doubt, classify as SIGNAL. Prefer inclusion over exclusion. A borderline article about Bangladesh's economic landscape should always be SIGNAL.
+DEDUPLICATION / DEDUCTION RULE (STRICT):
+- When multiple articles report on the EXACT SAME news story, event, or announcement (whether across English, Bengali, or different media outlets), select ONLY ONE representative index (preferably the most clear or detailed headline) and OMIT all near-duplicate indices.
 
-OUTPUT FORMAT — respond with ONLY this JSON object, nothing else:
-{"signal": [list of 0-based indices]}
+DEFAULT RULE: If a headline directly touches Bangladesh's broader economic, monetary, financial, or industrial framework, mark it as SIGNAL unless it duplicates an already selected item.
+
+EXAMPLES:
+
+Example 1:
+Input:
+0. বাংলাদেশ ব্যাংক নীতি সুদহার ২৫ বেসিস পয়েন্ট বাড়াল
+1. Bangladesh Bank raises policy rate by 25 basis points
+2. স্কয়ার ফার্মাসিউটিক্যালস সিলেটে নতুন সেলস সেন্টারের উদ্বোধন করল
+3. Bangladesh's forex reserves cross $20 billion amid remittance surge
+4. রেমিট্যান্সের তোড়ে বৈদেশিক মুদ্রার রিজার্ভ ২০ বিলিয়ন ডলার অতিক্রম করল
+5. সাকিব আল হাসান নতুন ব্র্যান্ড অ্যাম্বাসেডর হিসেবে চুক্তিবদ্ধ
+6. NBR mandates electronic fiscal devices for all medium retail outlets
+7. ঢাকা বিশ্ববিদ্যালয়ে অর্থনীতি বিভাগের নবীন বরণ অনুষ্ঠিত
+Output: {"signal": [0, 3, 6]}
+(Note: Index 1 duplicates Index 0; Index 4 duplicates Index 3; both are omitted.)
+
+Example 2:
+Input:
+0. DSE benchmark index drops 45 points amid bank stock sell-off
+1. ডিএসইর সূচক ৪৫ পয়েন্ট কমেছে
+2. IMF releases third tranche of $1.15 billion loan to Bangladesh
+3. আইএমএফের ১.১৫ বিলিয়ন ডলারের তৃতীয় কিস্তি অনুমোদন
+4. চট্টগ্রাম বন্দরে নতুন ভিআইপি রেস্টহাউস উদ্বোধন
+5. Inflation eases to 9.2% in August as food prices stabilize
+6. আগস্টে মূল্যস্ফীতি কমে ৯.২ শতাংশে নেমেছে
+7. স্থানীয় কাঁচাবাজারে আলুর দাম কেজিতে ৫ টাকা বাড়ল
+8. Commerce Ministry reduces import duty on crude palm oil by 10%
+Output: {"signal": [0, 2, 5, 8]}
+(Note: Indices 1, 3, and 6 are near-duplicates of 0, 2, and 5 respectively.)
+
+Example 3:
+Input:
+0. World Bank projects Bangladesh GDP growth at 5.6% for FY25
+1. বিশ্বব্যাংক বাংলাদেশের জিডিপি প্রবৃদ্ধি ৫.৬% হতে পারে বলে পূর্বাভাস দিয়েছে
+2. BSEC imposes circuit breaker on 5 underperforming stocks
+3. Beximco Pharma inaugurates new manufacturing plant in Gazipur
+4. Remittance inflow hits $2.2 billion in July, up 15% YoY
+5. জুলাইয়ে রেমিট্যান্স এসেছে ২.২ বিলিয়ন ডলার
+6. Bangladesh wins cricket match against Sri Lanka by 5 wickets
+Output: {"signal": [0, 2, 4]}
+(Note: Index 1 duplicates Index 0; Index 5 duplicates Index 4.)
 
 Article titles:
 {titles}"""
