@@ -1,6 +1,5 @@
 feedparser
 googlenewsdecoder
-google-generativeai
+google-genai
 python-dateutil
 requests
-mistralai
