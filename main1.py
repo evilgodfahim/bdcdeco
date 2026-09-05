@@ -21,11 +21,12 @@ Changes from previous version:
   This ensures Gemini always sees the newest articles regardless of feed order.
 - Switched classifier from Mistral to Gemini 2.5 Flash; prompt rewritten for
   higher recall (defaults to inclusion on ambiguity).
+- Switched from deprecated google.generativeai to google.genai (google-genai).
 """
 
 import feedparser
 from googlenewsdecoder import new_decoderv1 as _gnews_decoderv1
-import google.generativeai as genai
+from google import genai
 import html as _html_mod
 import json
 import os
@@ -551,16 +552,15 @@ def send_to_gemini(articles):
         return []
 
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        client = genai.Client(api_key=api_key)
 
         titles_text = "\n".join([f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)])
-
         prompt = PROMPT.replace("{titles}", titles_text)
 
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=genai.types.GenerateContentConfig(
                 response_mime_type="application/json",
             ),
         )
