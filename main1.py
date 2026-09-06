@@ -8,6 +8,22 @@ Both Bangla and English titles are evaluated.
 
 Output:  econ_feed.xml
 Stats:   econ_stats.json
+
+Changes from previous version:
+- Two-stage XML recovery: parse as-is → sanitize → fresh (never silently loses items)
+- _sanitize_xml_bytes(): strips forbidden control chars + fixes bare & in URLs
+- _safe_text(): escapes & < > in plain text nodes (<link>, <guid>) on write
+- errors="replace" on file open guards against encoding corruption
+- googlenewsdecoder (PyPI) replaces hand-rolled base64 decoder; retry wrapper
+  handles 429s with exponential backoff.
+- fetch_all_feeds() now collects all items across all feeds first, then sorts
+  globally by parsed pubDate descending before applying age cutoff and cap.
+  This ensures Gemini always sees the newest articles regardless of feed order.
+- Switched classifier from Mistral to Gemini 2.5 Flash; prompt rewritten for
+  higher recall (defaults to inclusion on ambiguity).
+- Switched from deprecated google.generativeai to google.genai (google-genai).
+- _set_gha_output(): writes has_signal=true/false to $GITHUB_OUTPUT so the
+  Actions workflow can skip the commit/push step when AI selects 0 articles.
 """
 
 import feedparser
@@ -35,32 +51,45 @@ except Exception:
 FEED_URLS = [
     # 1. World's Leading Organizations
     "https://news.google.com/rss/search?q=%22United+Nations%22+OR+NATO+OR+IMF+OR+%22World+Bank%22+OR+G20+OR+G7+OR+WTO+OR+OPEC+OR+WHO&hl=en-US&gl=US&ceid=US:en",
+
     # 2. Biggest News (Top Global Headlines)
     "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
+
     # 3. World Scale Macroeconomy
     "https://news.google.com/rss/search?q=global+economy+OR+macroeconomics+OR+inflation+OR+recession+OR+%22central+bank%22+OR+%22interest+rates%22+OR+%22debt+crisis%22+OR+%22fiscal+policy%22+OR+%22trade+war%22&hl=en-US&gl=US&ceid=US:en",
+
     # 4. Geopolitical Analysis & Events
     "https://news.google.com/rss/search?q=geopolitics+OR+geopolitical+OR+%22foreign+policy%22+OR+%22international+relations%22+OR+%22strategic+rivalry%22+OR+%22sphere+of+influence%22+OR+diplomacy&hl=en-US&gl=US&ceid=US:en",
+
     # 5. Groundbreaking Tech (non-mainstream)
     "https://news.google.com/rss/search?q=%22quantum+computing%22+OR+%22nuclear+fusion%22+OR+CRISPR+OR+%22synthetic+biology%22+OR+AGI+OR+%22brain+computer+interface%22+OR+neuromorphic+OR+%22gene+editing%22+OR+%22dark+matter%22+OR+%22fusion+energy%22&hl=en-US&gl=US&ceid=US:en",
+
     # 6. Intelligence News
     "https://news.google.com/rss/search?q=espionage+OR+%22intelligence+agency%22+OR+CIA+OR+MI6+OR+Mossad+OR+FSB+OR+cyberespionage+OR+%22signals+intelligence%22+OR+%22covert+operation%22+OR+SIGINT&hl=en-US&gl=US&ceid=US:en",
+
     # 7. Military & Conflict
     "https://news.google.com/rss/search?q=%22military+operation%22+OR+%22armed+conflict%22+OR+%22defense+contract%22+OR+%22weapons+system%22+OR+%22troop+deployment%22+OR+%22air+strike%22+OR+%22naval+exercise%22+OR+warfare+OR+%22theater+command%22&hl=en-US&gl=US&ceid=US:en",
+
     # 8. Energy & Critical Resources
     "https://news.google.com/rss/search?q=%22rare+earth%22+OR+%22critical+minerals%22+OR+%22energy+security%22+OR+%22oil+supply%22+OR+%22LNG%22+OR+%22pipeline%22+OR+%22food+security%22+OR+%22water+crisis%22+OR+%22resource+competition%22+OR+%22commodity+shock%22&hl=en-US&gl=US&ceid=US:en",
+
     # 9. Cyber & Information Warfare
     "https://news.google.com/rss/search?q=%22cyberattack%22+OR+%22ransomware%22+OR+%22critical+infrastructure+attack%22+OR+%22disinformation+campaign%22+OR+%22information+warfare%22+OR+%22election+interference%22+OR+%22state+sponsored+hacking%22+OR+%22zero+day%22&hl=en-US&gl=US&ceid=US:en",
+
     # 10. Global South & Emerging Markets
     "https://news.google.com/rss/search?q=%22Global+South%22+OR+%22emerging+markets%22+OR+ASEAN+OR+%22African+Union%22+OR+%22Belt+and+Road%22+OR+BRICS+OR+%22Latin+America+politics%22+OR+%22Southeast+Asia%22+OR+%22Sub-Saharan+Africa%22&hl=en-US&gl=US&ceid=US:en",
+
     # 11. Space (Strategic & Military)
     "https://news.google.com/rss/search?q=%22space+warfare%22+OR+%22satellite+weapon%22+OR+%22anti+satellite%22+OR+%22space+force%22+OR+%22commercial+space%22+OR+%22lunar+race%22+OR+%22space+debris%22+OR+%22space+domain%22&hl=en-US&gl=US&ceid=US:en",
+
     # 12. Biosecurity
     "https://news.google.com/rss/search?q=biosecurity+OR+bioweapon+OR+%22pandemic+preparedness%22+OR+%22gain+of+function%22+OR+%22lab+leak%22+OR+pathogen+OR+%22biological+threat%22+OR+%22WHO+emergency%22+OR+%22epidemic+outbreak%22&hl=en-US&gl=US&ceid=US:en",
+
     # 13. Climate & Environment
     "https://news.google.com/rss/search?q=%22climate+crisis%22+OR+%22extreme+weather%22+OR+%22sea+level+rise%22+OR+%22arctic+ice%22+OR+%22carbon+emissions%22+OR+%22COP%22+OR+%22climate+tipping+point%22+OR+%22environmental+collapse%22+OR+%22deforestation%22+OR+%22glacier+retreat%22&hl=en-US&gl=US&ceid=US:en",
 ]
 
+# Google News feed URL prefix — used to identify which links need decoding
 _GNEWS_PREFIXES = (
     "https://news.google.com/rss/articles/",
     "https://news.google.com/read/",
@@ -70,7 +99,7 @@ KL_API_FEEDS = set()
 
 # -- CONFIG --------------------------------------------------------------------
 
-GEMINI_MODEL          = "gemini-2.5-flash"
+GEMINI_MODEL          = "gemini-3.6-flash"
 
 SEEN_FILE             = "seen.json"
 SELECTED_FILE         = "econ_selected_articles.json"
@@ -137,13 +166,16 @@ STATS = {
     "total_new":           0,
     "total_signal_gemini": 0,
     "total_signal":        0,
-    "timestamp":           None,
+    "timestamp":            None,
 }
 
 # -- GITHUB ACTIONS OUTPUT -----------------------------------------------------
 
 def _set_gha_output(name: str, value: str) -> None:
-    """Write name=value to $GITHUB_OUTPUT. No-op outside GitHub Actions."""
+    """
+    Write name=value to $GITHUB_OUTPUT when running inside GitHub Actions.
+    No-op in local environments where the variable is absent.
+    """
     output_file = os.environ.get("GITHUB_OUTPUT")
     if not output_file:
         return
@@ -157,6 +189,13 @@ def is_google_news_url(url: str) -> bool:
 
 
 def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
+    """
+    Decode a Google News redirect URL to the real article URL using the
+    `googlenewsdecoder` PyPI package (new_decoderv1).
+
+    Retries up to _retries times with exponential backoff on 429 / failure.
+    Returns the original gnews_url if all attempts fail so no article is lost.
+    """
     if not gnews_url or not is_google_news_url(gnews_url):
         return gnews_url
 
@@ -641,7 +680,8 @@ def generate_xml_feed(articles, output_file, feed_title=None, feed_description=N
 
         ET.SubElement(item, "title").text       = a.get("title", "") or ""
         ET.SubElement(item, "description").text = a.get("description", "") or ""
-        ET.SubElement(item, "link").text        = _safe_text(link)
+
+        ET.SubElement(item, "link").text = _safe_text(link)
 
         guid_val     = a.get("id") or link
         is_permalink = "true" if guid_val.startswith("http") else "false"
@@ -719,7 +759,7 @@ def main():
         a.pop("_dt", None)
 
     STATS["total_new"] = len(new_articles)
-    print(f"Sending {len(new_articles)} article(s) to Gemini for filtering…")
+    print(f"Sending {len(new_articles)} article(s) to Gemini for BD economics/finance filtering…")
 
     gemini_indices = send_to_gemini(new_articles)
     gemini_indices = [i for i in gemini_indices if 0 <= i < len(new_articles)]
@@ -727,20 +767,17 @@ def main():
     STATS["total_signal_gemini"] = len(gemini_indices)
     STATS["total_signal"]        = len(gemini_indices)
 
-    if not gemini_indices:
-        # Do NOT write any files — nothing should be committed or pushed.
-        print("Gemini returned 0 signal articles. No files written.")
-        _set_gha_output("has_signal", "false")
-        print_stats()
-        return
-
-    # Only reach here when Gemini selected ≥1 article.
-    # Mark all processed articles as seen and persist before writing outputs.
     for a in new_articles:
         link = a.get("link")
         if link:
             seen_links.add(link)
     save_seen_links(seen_links)
+
+    if not gemini_indices:
+        print("Gemini returned no signal indices. Skipping XML writes.")
+        _set_gha_output("has_signal", "false")
+        print_stats()
+        return
 
     signal_articles   = [new_articles[i] for i in gemini_indices]
     excluded_articles = [
@@ -765,11 +802,10 @@ def main():
 
     save_selected_articles(signal_articles)
 
-    STATS["timestamp"] = datetime.utcnow().isoformat()
-    save_stats()
-
     _set_gha_output("has_signal", "true")
 
+    STATS["timestamp"] = datetime.utcnow().isoformat()
+    save_stats()
     print_stats()
 
 
