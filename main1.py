@@ -17,6 +17,7 @@ import json
 import os
 import re
 import time
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -75,7 +76,7 @@ FEED_URLS = [
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%B8%E0%A7%8D%E0%A6%AB%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%B6%E0%A7%87%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%B0%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A6%BE%E0%A6%B0+OR+%E0%A6%A1%E0%A6%BF%E0%A6%8F%E0%A6%B8%E0%A6%87+OR+%E0%A6%9F%E0%A6%BE%E0%A6%95%E0%A6%BE+OR+%E0%A6%A1%E0%A6%B2%E0%A6%BE%E0%A6%B0+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%AE%E0%A7%81%E0%A6%A6%E0%A7%8D%E0%A6%B0%E0%A6%BE+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A6%BC%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
-    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%িজার্ভ+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A6%BC+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%িজার্ভ+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
 ]
 
 _GNEWS_PREFIXES = (
@@ -995,8 +996,7 @@ def send_to_gemini(articles):
         print(
             f"Gemini classification error: {e}"
         )
-
-        return []
+        sys.exit(1)
 
 
 # -- XML -----------------------------------------------------------------------
