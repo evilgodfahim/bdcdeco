@@ -75,7 +75,7 @@ FEED_URLS = [
     # Google News — Bangla (BD edition)
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%85%E0%A6%B0%E0%A7%8D%E0%A6%A5%E0%A6%A8%E0%A7%80%E0%A6%A4%E0%A6%BF+OR+%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A7%87%E0%A6%9F+OR+%E0%A6%B0%E0%A6%BE%E0%A6%9C%E0%A6%B8%E0%A7%8D%E0%A6%AC+OR+%E0%A6%8F%E0%A6%A8%E0%A6%AC%E0%A6%BF%E0%A6%86%E0%A6%B0+OR+%E0%A6%AE%E0%A7%82%E0%A6%B2%E0%A7%8D%E0%A6%AF%E0%A6%B8%E0%A7%8D%E0%A6%AB%E0%A7%80%E0%A6%A4%E0%A6%BF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%B6%E0%A7%87%E0%A6%AF%E0%A6%BC%E0%A6%BE%E0%A6%B0%E0%A6%AC%E0%A6%BE%E0%A6%9C%E0%A6%BE%E0%A6%B0+OR+%E0%A6%A1%E0%A6%BF%E0%A6%8F%E0%A6%B8%E0%A6%87+OR+%E0%A6%9F%E0%A6%BE%E0%A6%95%E0%A6%BE+OR+%E0%A6%A1%E0%A6%B2%E0%A6%BE%E0%A6%B0+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%AE%E0%A7%81%E0%A6%A6%E0%A7%8D%E0%A6%B0%E0%A6%BE+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
-    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A7%BC%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
+    "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%AC%E0%A6%BF%E0%A6%A8%E0%A6%BF%E0%A6%AF%E0%A6%BC%E0%A7%8B%E0%A6%97+OR+%E0%A6%B0%E0%A6%AA%E0%A7%8D%E0%A6%A4%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%86%E0%A6%AE%E0%A6%A6%E0%A6%BE%E0%A6%A8%E0%A6%BF+OR+%E0%A6%B0%E0%A7%87%E0%A6%AE%E0%A6%BF%E0%A6%9C%E0%A6%BC%E0%A6%BE%E0%A6%A8%E0%A7%8D%E0%A6%B8+OR+%E0%A6%AA%E0%A7%8B%E0%A6%B6%E0%A6%BE%E0%A6%95+OR+%E0%A6%B6%E0%A6%BF%E0%A6%B2%E0%A7%8D%E0%A6%AA+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
     "https://news.google.com/rss/search?q=%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE%E0%A6%A6%E0%A7%87%E0%A6%B6+%E0%A6%86%E0%A6%87%E0%A6%8F%E0%A6%AE%E0%A6%8F%E0%A6%AB+OR+%E0%A6%AC%E0%A6%BF%E0%A6%B6%E0%A7%8D%E0%A6%AC%E0%A6%AC%E0%A7%8D%E0%A6%AF%E0%A6%BE%E0%A6%82%E0%A6%95+OR+%E0%A6%8B%E0%A6%A3+OR+%E0%A6%B0%E0%A6%BF%E0%A6%9C%E0%A6%BE%E0%A6%B0%E0%A7%8D%E0%A6%AD+OR+%E0%A6%AC%E0%A7%88%E0%A6%A6%E0%A7%87%E0%A6%B6%E0%A6%BF%E0%A6%95+%E0%A6%B8%E0%A6%BE%E0%A6%B9%E0%A6%BE%E0%A6%AF%E0%A7%8D%E0%A6%AF+when:7d&hl=bn-BD&gl=BD&ceid=BD:bn",
 ]
 
@@ -168,6 +168,7 @@ STATS = {
 def _set_gha_output(name: str, value: str) -> None:
     """Write name=value to $GITHUB_OUTPUT. No-op outside GitHub Actions."""
     output_file = os.environ.get("GITHUB_OUTPUT")
+
     if not output_file:
         return
 
@@ -178,10 +179,16 @@ def _set_gha_output(name: str, value: str) -> None:
 # -- GOOGLE NEWS URL DECODING --------------------------------------------------
 
 def is_google_news_url(url: str) -> bool:
-    return any(url.startswith(p) for p in _GNEWS_PREFIXES)
+    return any(
+        url.startswith(p)
+        for p in _GNEWS_PREFIXES
+    )
 
 
-def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
+def decode_google_news_url(
+    gnews_url: str,
+    _retries: int = 3,
+) -> str:
     """
     Decode a Google News redirect URL.
 
@@ -196,7 +203,9 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
         return gnews_url
 
     if _gnews_decoder is None:
-        print("[WARN] No compatible googlenewsdecoder API found.")
+        print(
+            "[WARN] No compatible googlenewsdecoder API found."
+        )
         return gnews_url
 
     delay = 1.0
@@ -217,7 +226,10 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
                 ):
                     decoded = result["decoded_url"]
 
-                    if isinstance(decoded, str) and decoded.startswith("http"):
+                    if (
+                        isinstance(decoded, str)
+                        and decoded.startswith("http")
+                    ):
                         return decoded
 
             else:
@@ -233,7 +245,10 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
                 ):
                     decoded = result["decoded_url"]
 
-                    if isinstance(decoded, str) and decoded.startswith("http"):
+                    if (
+                        isinstance(decoded, str)
+                        and decoded.startswith("http")
+                    ):
                         return decoded
 
             if attempt < _retries - 1:
@@ -245,14 +260,19 @@ def decode_google_news_url(gnews_url: str, _retries: int = 3) -> str:
                 time.sleep(delay)
                 delay *= 2
             else:
-                print(f"[WARN] gnews decode failed for {gnews_url}: {e}")
+                print(
+                    f"[WARN] gnews decode failed "
+                    f"for {gnews_url}: {e}"
+                )
 
     return gnews_url
 
 
 # -- XML SANITIZATION ----------------------------------------------------------
 
-_CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+_CTRL_RE = re.compile(
+    r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]'
+)
 
 
 def _sanitize_xml_bytes(raw: str) -> str:
@@ -271,7 +291,10 @@ def _safe_text(value: str) -> str:
     if not value:
         return value
 
-    return _html_mod.escape(value, quote=False)
+    return _html_mod.escape(
+        value,
+        quote=False,
+    )
 
 
 # -- I/O -----------------------------------------------------------------------
@@ -279,10 +302,16 @@ def _safe_text(value: str) -> str:
 def load_seen_links():
     if Path(SEEN_FILE).exists():
         try:
-            with open(SEEN_FILE, "r", encoding="utf-8") as f:
+            with open(
+                SEEN_FILE,
+                "r",
+                encoding="utf-8",
+            ) as f:
                 data = json.load(f)
 
-            return set(data.get("links", []))
+            return set(
+                data.get("links", [])
+            )
 
         except Exception:
             pass
@@ -291,7 +320,11 @@ def load_seen_links():
 
 
 def save_seen_links(seen_links):
-    with open(SEEN_FILE, "w", encoding="utf-8") as f:
+    with open(
+        SEEN_FILE,
+        "w",
+        encoding="utf-8",
+    ) as f:
         json.dump(
             {"links": sorted(seen_links)},
             f,
@@ -305,20 +338,32 @@ def save_selected_articles(articles):
 
     if Path(SELECTED_FILE).exists():
         try:
-            with open(SELECTED_FILE, "r", encoding="utf-8") as f:
+            with open(
+                SELECTED_FILE,
+                "r",
+                encoding="utf-8",
+            ) as f:
                 existing = json.load(f)
 
         except Exception:
             pass
 
-    existing_links = {a.get("link") for a in existing}
+    existing_links = {
+        a.get("link")
+        for a in existing
+    }
 
     merged = existing + [
-        a for a in articles
+        a
+        for a in articles
         if a.get("link") not in existing_links
     ]
 
-    with open(SELECTED_FILE, "w", encoding="utf-8") as f:
+    with open(
+        SELECTED_FILE,
+        "w",
+        encoding="utf-8",
+    ) as f:
         json.dump(
             merged,
             f,
@@ -334,7 +379,11 @@ def save_stats():
 
     if Path(STATS_FILE).exists():
         try:
-            with open(STATS_FILE, "r", encoding="utf-8") as f:
+            with open(
+                STATS_FILE,
+                "r",
+                encoding="utf-8",
+            ) as f:
                 existing = json.load(f)
 
         except Exception:
@@ -342,7 +391,11 @@ def save_stats():
 
     existing.update(STATS)
 
-    with open(STATS_FILE, "w", encoding="utf-8") as f:
+    with open(
+        STATS_FILE,
+        "w",
+        encoding="utf-8",
+    ) as f:
         json.dump(
             existing,
             f,
@@ -377,7 +430,11 @@ def normalize_link(link, base=None):
         link,
     )
 
-    link = re.sub(r"[?&]$", "", link)
+    link = re.sub(
+        r"[?&]$",
+        "",
+        link,
+    )
 
     return link.split("#")[0]
 
@@ -418,9 +475,14 @@ def parse_date(entry):
                 dt = parsedate_to_datetime(val)
 
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(
+                        tzinfo=timezone.utc
+                    )
 
-                return dt.astimezone(timezone.utc), False
+                return (
+                    dt.astimezone(timezone.utc),
+                    False,
+                )
 
             except Exception:
                 pass
@@ -430,15 +492,23 @@ def parse_date(entry):
                     dt = dateutil_parser.parse(val)
 
                     if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
+                        dt = dt.replace(
+                            tzinfo=timezone.utc
+                        )
 
-                    return dt.astimezone(timezone.utc), False
+                    return (
+                        dt.astimezone(timezone.utc),
+                        False,
+                    )
 
                 except Exception:
                     pass
 
     if ALLOW_MISSING_DATES:
-        return datetime.now(timezone.utc), True
+        return (
+            datetime.now(timezone.utc),
+            True,
+        )
 
     return None, False
 
@@ -449,7 +519,10 @@ IMG_SRC_RE = re.compile(
 )
 
 
-def find_image_in_html(html_text, base=None):
+def find_image_in_html(
+    html_text,
+    base=None,
+):
     if not html_text:
         return None
 
@@ -485,17 +558,26 @@ def get_mime_for_url(url):
     return "image/jpeg"
 
 
-def extract_image_url(entry, base_link=None):
+def extract_image_url(
+    entry,
+    base_link=None,
+):
     mt = entry.get("media_thumbnail")
 
     if mt:
-        if isinstance(mt, list) and mt[0].get("url"):
+        if (
+            isinstance(mt, list)
+            and mt[0].get("url")
+        ):
             return normalize_link(
                 mt[0]["url"],
                 base=base_link,
             )
 
-        if isinstance(mt, dict) and mt.get("url"):
+        if (
+            isinstance(mt, dict)
+            and mt.get("url")
+        ):
             return normalize_link(
                 mt["url"],
                 base=base_link,
@@ -504,13 +586,19 @@ def extract_image_url(entry, base_link=None):
     mc = entry.get("media_content")
 
     if mc:
-        if isinstance(mc, list) and mc[0].get("url"):
+        if (
+            isinstance(mc, list)
+            and mc[0].get("url")
+        ):
             return normalize_link(
                 mc[0]["url"],
                 base=base_link,
             )
 
-        if isinstance(mc, dict) and mc.get("url"):
+        if (
+            isinstance(mc, dict)
+            and mc.get("url")
+        ):
             return normalize_link(
                 mc["url"],
                 base=base_link,
@@ -605,7 +693,11 @@ def extract_image_url(entry, base_link=None):
 
 # -- FETCHING ------------------------------------------------------------------
 
-def fetch_via_kl(kl_endpoint, target_feed_url, timeout=20):
+def fetch_via_kl(
+    kl_endpoint,
+    target_feed_url,
+    timeout=20,
+):
     if not kl_endpoint:
         return None
 
@@ -626,8 +718,13 @@ def fetch_via_kl(kl_endpoint, target_feed_url, timeout=20):
             timeout=timeout,
         )
 
-        if resp.status_code == 200 and resp.text:
-            return feedparser.parse(resp.text)
+        if (
+            resp.status_code == 200
+            and resp.text
+        ):
+            return feedparser.parse(
+                resp.text
+            )
 
     except Exception:
         pass
@@ -640,8 +737,13 @@ def fetch_via_kl(kl_endpoint, target_feed_url, timeout=20):
             timeout=timeout,
         )
 
-        if resp.status_code == 200 and resp.text:
-            return feedparser.parse(resp.text)
+        if (
+            resp.status_code == 200
+            and resp.text
+        ):
+            return feedparser.parse(
+                resp.text
+            )
 
     except Exception:
         pass
@@ -667,10 +769,14 @@ def fetch_feed(url):
                 method_used = "KL"
 
         if not feed:
-            feed = feedparser.parse(url_norm)
+            feed = feedparser.parse(
+                url_norm
+            )
 
     else:
-        feed = feedparser.parse(url_norm)
+        feed = feedparser.parse(
+            url_norm
+        )
 
     entries_count = len(
         getattr(feed, "entries", [])
@@ -685,16 +791,22 @@ def fetch_feed(url):
         },
     )
 
-    STATS["per_feed"][url_norm]["fetched"] += entries_count
+    STATS["per_feed"][url_norm][
+        "fetched"
+    ] += entries_count
 
     STATS["per_method"].setdefault(
         method_used,
         0,
     )
 
-    STATS["per_method"][method_used] += entries_count
+    STATS["per_method"][method_used] += (
+        entries_count
+    )
 
-    STATS["total_fetched"] += entries_count
+    STATS["total_fetched"] += (
+        entries_count
+    )
 
     return feed
 
@@ -807,7 +919,9 @@ def fetch_all_feeds():
             if image_url:
                 article["thumbnail"] = image_url
                 article["thumbnail_type"] = (
-                    get_mime_for_url(image_url)
+                    get_mime_for_url(
+                        image_url
+                    )
                 )
 
             feed_items.append(article)
@@ -848,8 +962,11 @@ def fetch_all_feeds():
         )
 
     for url in FEED_URLS:
-        STATS["per_feed"][url]["capped"] = (
-            included_sources.get(url, 0)
+        STATS["per_feed"][url][
+            "capped"
+        ] = included_sources.get(
+            url,
+            0,
         )
 
     return all_articles
@@ -864,7 +981,10 @@ def get_new_articles(
     for a in all_articles:
         link = a.get("link")
 
-        if link and link not in seen_links:
+        if (
+            link
+            and link not in seen_links
+        ):
             new.append(a)
 
     return new
@@ -956,29 +1076,56 @@ def extract_signal_indices(text):
 
 
 def send_to_mistral(articles):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key or not articles:
-        return {"signal": [], "longread": []}
+    api_key = os.environ.get(
+        "GEMINI_API_KEY"
+    )
 
-    client = genai.Client(api_key=api_key)
+    if not api_key or not articles:
+        return []
+
+    client = genai.Client(
+        api_key=api_key
+    )
+
     titles_text = "\n".join(
-        f"{i}. {a.get('title', '')}" for i, a in enumerate(articles)
+        f"{i}. {a.get('title', '')}"
+        for i, a in enumerate(articles)
     )
 
     for attempt in range(2):
         try:
-            chat = client.chats.create(model=MISTRAL_MODEL)
-            response = chat.send_message(
-                PROMPT.format(titles=titles_text),
-                config={"response_mime_type": "application/json"},
+            chat = client.chats.create(
+                model=MISTRAL_MODEL
             )
-            text = response.text if hasattr(response, "text") else ""
-            return extract_json_object(text)
+
+            response = chat.send_message(
+                PROMPT.replace(
+                    "{titles}",
+                    titles_text,
+                ),
+                config={
+                    "response_mime_type":
+                        "application/json"
+                },
+            )
+
+            text = (
+                response.text
+                if hasattr(response, "text")
+                else ""
+            )
+
+            return extract_signal_indices(
+                text
+            )
+
         except Exception as e:
-            print(f"Gemini classification error: {e}")
+            print(
+                f"Gemini classification error: {e}"
+            )
             sys.exit(1)
 
-    return {"signal": [], "longread": []}
+    return []
 
 
 # -- XML -----------------------------------------------------------------------
@@ -1025,9 +1172,14 @@ def _load_or_create(
 
     if Path(output_file).exists():
         try:
-            tree = ET.parse(output_file)
+            tree = ET.parse(
+                output_file
+            )
+
             root = tree.getroot()
-            channel = root.find("channel")
+            channel = root.find(
+                "channel"
+            )
 
             if channel is not None:
                 return (
@@ -1069,17 +1221,27 @@ def _load_or_create(
             ) as fh:
                 raw = fh.read()
 
-            clean = _sanitize_xml_bytes(raw)
+            clean = _sanitize_xml_bytes(
+                raw
+            )
 
-            root = ET.fromstring(clean)
+            root = ET.fromstring(
+                clean
+            )
 
-            tree = ET.ElementTree(root)
+            tree = ET.ElementTree(
+                root
+            )
 
-            channel = root.find("channel")
+            channel = root.find(
+                "channel"
+            )
 
             if channel is not None:
                 recovered = len(
-                    channel.findall("item")
+                    channel.findall(
+                        "item"
+                    )
                 )
 
                 print(
@@ -1124,7 +1286,9 @@ def _load_or_create(
         {"version": "2.0"},
     )
 
-    tree = ET.ElementTree(root)
+    tree = ET.ElementTree(
+        root
+    )
 
     channel = _fresh_channel(
         root,
@@ -1163,8 +1327,12 @@ def generate_xml_feed(
 
     existing_links: set[str] = set()
 
-    for item in channel.findall("item"):
-        link_el = item.find("link")
+    for item in channel.findall(
+        "item"
+    ):
+        link_el = item.find(
+            "link"
+        )
 
         if (
             link_el is not None
@@ -1214,7 +1382,9 @@ def generate_xml_feed(
         ET.SubElement(
             item,
             "link",
-        ).text = _safe_text(link)
+        ).text = _safe_text(
+            link
+        )
 
         guid_val = (
             a.get("id")
@@ -1231,7 +1401,8 @@ def generate_xml_feed(
             item,
             "guid",
             {
-                "isPermaLink": is_permalink
+                "isPermaLink":
+                    is_permalink
             },
         ).text = _safe_text(
             guid_val
@@ -1241,22 +1412,30 @@ def generate_xml_feed(
             ET.SubElement(
                 item,
                 "pubDate",
-            ).text = a["published"]
+            ).text = a[
+                "published"
+            ]
 
-        thumb = a.get("thumbnail")
+        thumb = a.get(
+            "thumbnail"
+        )
 
         if thumb:
             ET.SubElement(
                 item,
                 MEDIA_TAG + "thumbnail",
-                {"url": thumb},
+                {
+                    "url": thumb
+                },
             )
 
             mime = (
                 a.get(
                     "thumbnail_type"
                 )
-                or get_mime_for_url(thumb)
+                or get_mime_for_url(
+                    thumb
+                )
             )
 
             ET.SubElement(
@@ -1269,10 +1448,15 @@ def generate_xml_feed(
                 },
             )
 
-        existing_links.add(link)
+        existing_links.add(
+            link
+        )
+
         added += 1
 
-    all_items = channel.findall("item")
+    all_items = channel.findall(
+        "item"
+    )
 
     overflow = (
         len(all_items)
@@ -1280,8 +1464,12 @@ def generate_xml_feed(
     )
 
     if overflow > 0:
-        for old_item in all_items[:overflow]:
-            channel.remove(old_item)
+        for old_item in all_items[
+            :overflow
+        ]:
+            channel.remove(
+                old_item
+            )
 
     now_text = datetime.utcnow().strftime(
         "%a, %d %b %Y %H:%M:%S +0000"
@@ -1387,7 +1575,9 @@ def print_stats():
     for feed, d in STATS[
         "per_feed"
     ].items():
-        print(f"    {feed}")
+        print(
+            f"    {feed}"
+        )
 
         print(
             "      fetched="
@@ -1469,7 +1659,9 @@ def main():
         if link:
             seen_links.add(link)
 
-    save_seen_links(seen_links)
+    save_seen_links(
+        seen_links
+    )
 
     signal_articles = [
         new_articles[i]
@@ -1482,7 +1674,9 @@ def main():
 
     excluded_articles = [
         new_articles[i]
-        for i in range(len(new_articles))
+        for i in range(
+            len(new_articles)
+        )
         if i not in signal_index_set
     ]
 
