@@ -105,7 +105,7 @@ MAX_FEED_ITEMS        = 500
 
 # -- PROMPT --------------------------------------------------------------------
 
-PROMPT = """ROLE: News classifier for Bangladesh economics and finance. Input is a numbered list of article titles in English or Bengali. Output must be valid JSON only — no markdown, no explanation.
+PROMPT = """ROLE: News classifier for Bangladesh economics and finance. Input is a numbered list of article titles in English or Bengali. Output must be valid JSON only — no markdown, no explanation. The bar of selection is Super High [Extreme Low < Super Low < Low < Normal < High < Super High < Ultimate High].
 
 TASK: Return the 0-based indices of every SIGNAL article.
 
